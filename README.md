@@ -23,19 +23,19 @@ Four public policy documents are used as the knowledge base:
 
 ```
 data/raw/          PDF policy documents
-    ?
-src/ingest.py      Load PDFs ? LangChain Documents (per page)
-    ?
+    ↓
+src/ingest.py      Load PDFs → LangChain Documents (per page)
+    ↓
 src/chunk.py       Split into overlapping chunks with metadata
-    ?
-src/embed.py       Embed chunks ? Chroma vector store       [TODO]
-    ?
+    ↓
+src/embed.py       Embed chunks → Chroma vector store       [TODO]
+    ↓
 src/retrieve.py    Similarity search over Chroma            [TODO]
-    ?
+    ↓
 src/generate.py    RAG answer with citations                [TODO]
-    ?
+    ↓
 app/streamlit_app.py   Chat UI                            [TODO]
-    ?
+    ↓
 src/evaluate.py    Run against gold questions             [TODO]
 ```
 
@@ -43,9 +43,9 @@ src/evaluate.py    Run against gold questions             [TODO]
 
 Each chunk carries:
 
-- `source_file` � PDF filename (e.g. `nist-ai-100-1.pdf`)
-- `page` � 0-based page number
-- `chunk_id` � unique ID (e.g. `nist-ai-100-1.pdf_p12_c003`)
+- `source_file` — PDF filename (e.g. `nist-ai-100-1.pdf`)
+- `page` — 0-based page number
+- `chunk_id` — unique ID (e.g. `nist-ai-100-1.pdf_p12_c003`)
 
 See [reports/architecture.md](reports/architecture.md) for more detail.
 
@@ -104,7 +104,7 @@ OPENAI_API_KEY=your_real_key_here
 
 > **Never commit `.env`.** It is listed in `.gitignore`.
 
-## Current Milestone � Ingestion and Chunking
+## Current Milestone — Ingestion and Chunking
 
 Run these commands from the project root with your virtual environment active:
 
@@ -118,34 +118,34 @@ python -m src.chunk
 
 ## Next Milestones
 
-1. **Embeddings** � `src/embed.py`: embed chunks with OpenAI and store in ChromaDB
-2. **Retrieval** � `src/retrieve.py`: similarity search over the vector store
-3. **Generation** � `src/generate.py`: RAG answers with source citations
-4. **Streamlit UI** � `app/streamlit_app.py`: interactive chat interface
-5. **Evaluation** � `src/evaluate.py`: test against `evals/gold_questions.csv`
+1. **Embeddings** — `src/embed.py`: embed chunks with OpenAI and store in ChromaDB
+2. **Retrieval** — `src/retrieve.py`: similarity search over the vector store
+3. **Generation** — `src/generate.py`: RAG answers with source citations
+4. **Streamlit UI** — `app/streamlit_app.py`: interactive chat interface
+5. **Evaluation** — `src/evaluate.py`: test against `evals/gold_questions.csv`
 
 ## Project Structure
 
 ```
 policy-rag-assistant/
-??? data/
-?   ??? raw/              # Source PDFs
-?   ??? processed/        # Vector store output (gitignored)
-??? src/
-?   ??? config.py         # Paths and defaults
-?   ??? ingest.py         # PDF loading
-?   ??? chunk.py          # Text splitting
-?   ??? embed.py          # [TODO]
-?   ??? retrieve.py       # [TODO]
-?   ??? generate.py       # [TODO]
-?   ??? evaluate.py       # [TODO]
-??? app/
-?   ??? streamlit_app.py  # [TODO]
-??? evals/
-?   ??? gold_questions.csv
-??? reports/
-?   ??? architecture.md
-??? screenshots/
+├── data/
+│   ├── raw/              # Source PDFs
+│   └── processed/        # Vector store output (gitignored)
+├── src/
+│   ├── config.py         # Paths and defaults
+│   ├── ingest.py         # PDF loading
+│   ├── chunk.py          # Text splitting
+│   ├── embed.py          # [TODO]
+│   ├── retrieve.py       # [TODO]
+│   ├── generate.py       # [TODO]
+│   └── evaluate.py       # [TODO]
+├── app/
+│   └── streamlit_app.py  # [TODO]
+├── evals/
+│   └── gold_questions.csv
+├── reports/
+│   └── architecture.md
+└── screenshots/
 ```
 
 ## License
