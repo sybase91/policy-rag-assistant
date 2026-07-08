@@ -13,3 +13,7 @@ PROCESSED_DATA_DIR = PROJECT_ROOT / "data" / "processed"
 
 CHUNK_SIZE = 900
 CHUNK_OVERLAP = 150
+
+CHROMA_PERSIST_DIR = PROCESSED_DATA_DIR / "chroma"
+CHROMA_COLLECTION_NAME = "ai_governance_docs"
+EMBEDDING_MODEL = "text-embedding-3-small"

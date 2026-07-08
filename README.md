@@ -6,7 +6,17 @@ A beginner-friendly Python RAG (Retrieval-Augmented Generation) prototype for an
 
 This project builds a small RAG pipeline over public AI policy PDFs. You ask a question in plain English; the system retrieves relevant passages and generates an answer with citations back to the source document and page.
 
-**Current milestone:** PDF ingestion and text chunking (Phase 1).
+**Current milestone:** Embeddings and Chroma vector store (Phase 2).
+
+## What Phase 2 Does
+
+Phase 1 turned PDFs into text chunks. Phase 2 gives those chunks **meaning** that a computer can search:
+
+1. **Embedding** � Each chunk is sent to OpenAI, which returns a list of numbers representing the chunk's meaning.
+2. **Vector database** � Those number-lists are stored in Chroma, a local database optimized for similarity search.
+3. **Why Chroma** � It runs on your machine, saves to disk, and works well with LangChain. No separate database server needed.
+4. **Why metadata matters** � Each stored chunk keeps `source_file`, `page`, and `chunk_id` so future answers can cite the original PDF.
+5. **Why before retrieval/generation** � Retrieval searches this index; generation reads the chunks retrieval finds. Without Phase 2, there is nothing to search.
 
 ## Corpus
 
@@ -23,19 +33,19 @@ Four public policy documents are used as the knowledge base:
 
 ```
 data/raw/          PDF policy documents
-    ↓
-src/ingest.py      Load PDFs → LangChain Documents (per page)
-    ↓
+    ?
+src/ingest.py      Load PDFs ? LangChain Documents (per page)
+    ?
 src/chunk.py       Split into overlapping chunks with metadata
-    ↓
-src/embed.py       Embed chunks → Chroma vector store       [TODO]
-    ↓
+    ?
+src/embed.py       Embed chunks ? Chroma vector store
+    ?
 src/retrieve.py    Similarity search over Chroma            [TODO]
-    ↓
+    ?
 src/generate.py    RAG answer with citations                [TODO]
-    ↓
+    ?
 app/streamlit_app.py   Chat UI                            [TODO]
-    ↓
+    ?
 src/evaluate.py    Run against gold questions             [TODO]
 ```
 
@@ -43,9 +53,9 @@ src/evaluate.py    Run against gold questions             [TODO]
 
 Each chunk carries:
 
-- `source_file` — PDF filename (e.g. `nist-ai-100-1.pdf`)
-- `page` — 0-based page number
-- `chunk_id` — unique ID (e.g. `nist-ai-100-1.pdf_p12_c003`)
+- `source_file` � PDF filename (e.g. `nist-ai-100-1.pdf`)
+- `page` � 0-based page number
+- `chunk_id` � unique ID (e.g. `nist-ai-100-1.pdf_p12_c003`)
 
 See [reports/architecture.md](reports/architecture.md) for more detail.
 
@@ -96,56 +106,93 @@ curl -L -o data/raw/owasp-llm-top-10-v2025.pdf \
 cp .env.example .env
 ```
 
-Edit `.env` and replace the placeholder with your real OpenAI API key (needed in later phases, not for ingestion/chunking):
+Edit `.env` and replace the placeholder with your **real** OpenAI API key:
 
 ```
-OPENAI_API_KEY=your_real_key_here
+OPENAI_API_KEY=sk-your-real-key-here
 ```
 
+> **Required for Phase 2.** Embeddings call the OpenAI API. Phases 1 (ingest/chunk) still work offline without a key.
+>
 > **Never commit `.env`.** It is listed in `.gitignore`.
 
-## Current Milestone — Ingestion and Chunking
+## Current Milestone � Embeddings and Chroma
 
-Run these commands from the project root with your virtual environment active:
+Run these commands from the project root with your virtual environment active.
+
+### First-time build (or full refresh)
 
 ```bash
-# Load PDFs and print page counts
-python -m src.ingest
+python -m src.embed --rebuild
+```
 
-# Split pages into chunks and print sample output
+Deletes any existing local index and rebuilds from the PDFs. Calls the OpenAI API once per chunk (~629 chunks).
+
+### Load existing index
+
+```bash
+python -m src.embed
+```
+
+If `data/processed/chroma/` already exists, loads it and skips re-indexing. Still runs a test similarity search.
+
+### Expected output
+
+```
+PDFs loaded: 4
+Pages loaded: 189
+Chunks created: 629
+Chroma collection: ai_governance_docs
+Chroma storage path: .../data/processed/chroma
+Mode: rebuild
+Chunks indexed: 629
+
+--- Test search: "What is prompt injection?" ---
+
+[1] source_file=owasp-llm-top-10-v2025.pdf
+    page=...
+    chunk_id=...
+    text: ...
+```
+
+The test search should return chunks from OWASP or NIST documents about prompt injection.
+
+### Phase 1 commands (still useful)
+
+```bash
+python -m src.ingest
 python -m src.chunk
 ```
 
 ## Next Milestones
 
-1. **Embeddings** — `src/embed.py`: embed chunks with OpenAI and store in ChromaDB
-2. **Retrieval** — `src/retrieve.py`: similarity search over the vector store
-3. **Generation** — `src/generate.py`: RAG answers with source citations
-4. **Streamlit UI** — `app/streamlit_app.py`: interactive chat interface
-5. **Evaluation** — `src/evaluate.py`: test against `evals/gold_questions.csv`
+1. **Retrieval** � `src/retrieve.py`: similarity search over the vector store
+2. **Generation** � `src/generate.py`: RAG answers with source citations
+3. **Streamlit UI** � `app/streamlit_app.py`: interactive chat interface
+4. **Evaluation** � `src/evaluate.py`: test against `evals/gold_questions.csv`
 
 ## Project Structure
 
 ```
 policy-rag-assistant/
-├── data/
-│   ├── raw/              # Source PDFs
-│   └── processed/        # Vector store output (gitignored)
-├── src/
-│   ├── config.py         # Paths and defaults
-│   ├── ingest.py         # PDF loading
-│   ├── chunk.py          # Text splitting
-│   ├── embed.py          # [TODO]
-│   ├── retrieve.py       # [TODO]
-│   ├── generate.py       # [TODO]
-│   └── evaluate.py       # [TODO]
-├── app/
-│   └── streamlit_app.py  # [TODO]
-├── evals/
-│   └── gold_questions.csv
-├── reports/
-│   └── architecture.md
-└── screenshots/
+??? data/
+?   ??? raw/              # Source PDFs
+?   ??? processed/        # Chroma vector store (gitignored)
+??? src/
+?   ??? config.py         # Paths and defaults
+?   ??? ingest.py         # PDF loading
+?   ??? chunk.py          # Text splitting
+?   ??? embed.py          # Embeddings + Chroma indexing
+?   ??? retrieve.py       # [TODO]
+?   ??? generate.py       # [TODO]
+?   ??? evaluate.py       # [TODO]
+??? app/
+?   ??? streamlit_app.py  # [TODO]
+??? evals/
+?   ??? gold_questions.csv
+??? reports/
+?   ??? architecture.md
+??? screenshots/
 ```
 
 ## License
