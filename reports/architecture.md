@@ -7,7 +7,7 @@ This document describes the RAG pipeline architecture, data flow, and implementa
 ## Full Pipeline
 
 ```
-PDFs -> Ingestion -> Chunking -> Embeddings -> Chroma Vector Store -> Retrieval -> Generation TODO -> UI TODO -> Evaluation TODO
+PDFs -> Ingestion -> Chunking -> Embeddings -> Chroma Vector Store -> Retrieval -> Grounded Generation -> UI TODO -> Evaluation TODO
 ```
 
 ## Corpus Sources
@@ -112,10 +112,41 @@ If retrieval returns wrong or empty chunks, the LLM may hallucinate or cite the 
 | Prerequisite | Chroma index from `python -m src.embed --rebuild` |
 | API key | Required (embeds each question for search) |
 
-### 5. Generation (`src/generate.py`) - Planned
+### 5. Generation (`src/generate.py`) - Implemented
 
-- Pass retrieved chunks + question to an OpenAI chat model
-- Produce an answer with inline or footnote citations (`source_file`, `page`)
+Phase 4 turns retrieved chunks into a concise, grounded answer with citations.
+
+**What generation does in RAG**
+
+Generation is the "G" in RAG. After retrieval finds relevant passages, a chat model writes a natural-language answer for the user.
+
+**What grounded generation means**
+
+The LLM must answer using only the retrieved context block, not its general training knowledge. This reduces invented policies, controls, or laws.
+
+**Why citations matter**
+
+Inline citations like `[owasp-llm-top-10-v2025.pdf, page 6]` let users verify claims in the original PDFs. A separate sources list also shows `chunk_id` for debugging.
+
+**Refusal behavior**
+
+If the question is not supported by the corpus (e.g. "What is my company's refund policy?"), the assistant should say:
+
+`I don't know based on the provided documents.`
+
+If retrieved context is weak or unrelated, the model should state that the documents do not provide enough information.
+
+**Implementation details**
+
+| Setting | Value |
+|---------|-------|
+| Entry point | `python -m src.generate` |
+| Chat model | `gpt-4o-mini` |
+| Temperature | `0` |
+| Retrieval k | `5` (via `retrieve_context`) |
+| Functions | `format_context()`, `extract_sources()`, `answer_question()` |
+| Prerequisite | Chroma index from `python -m src.embed --rebuild` |
+| API key | Required (retrieval embeddings + chat completion) |
 
 ### 6. UI (`app/streamlit_app.py`) - Planned
 
@@ -148,10 +179,11 @@ Metadata matters because retrieval returns chunks, but users need `source_file` 
 - `RAW_DATA_DIR`, `PROCESSED_DATA_DIR` - resolved from project root
 - `CHUNK_SIZE`, `CHUNK_OVERLAP` - splitter defaults
 - `CHROMA_PERSIST_DIR`, `CHROMA_COLLECTION_NAME`, `EMBEDDING_MODEL` - vector store settings
+- `CHAT_MODEL`, `CHAT_TEMPERATURE` - generation settings
 - `load_dotenv()` - loads `OPENAI_API_KEY` from local `.env`
 
 ## Security Notes
 
 - `.env` is gitignored; only `.env.example` with placeholders is committed
 - Phase 1 (ingest/chunk) runs fully offline
-- Phases 2 and 3 call the OpenAI API - requires a real API key in local `.env` only
+- Phases 2, 3, and 4 call the OpenAI API - requires a real API key in local `.env` only
