@@ -7,7 +7,7 @@ This document describes the RAG pipeline architecture, data flow, and implementa
 ## Full Pipeline
 
 ```
-PDFs -> Ingestion -> Chunking -> Embeddings -> Chroma Vector Store -> Retrieval -> Grounded Generation -> Streamlit UI -> Evaluation TODO
+PDFs -> Ingestion -> Chunking -> Embeddings -> Chroma Vector Store -> Retrieval -> Grounded Generation -> Streamlit UI -> Evaluation
 ```
 
 ## Corpus Sources
@@ -186,10 +186,40 @@ The UI is presentation only. It does not duplicate retrieval, embedding, or gene
 | Page icon | Brain emoji |
 | Feedback | Placeholder only |
 
-### 7. Evaluation (`src/evaluate.py`) - Planned
+### 7. Evaluation (`src/evaluate.py`) - Implemented
 
-- Run pipeline against `evals/gold_questions.csv`
-- Measure retrieval hit rate and answer quality
+Phase 6 closes the quality loop: after retrieval and grounded generation, a simple local harness checks whether answers look correct enough for a v0.1 demo.
+
+**What evaluation does**
+
+- Loads labeled **gold questions** from `evals/gold_questions.csv`
+- Calls `answer_question()` for each question (no duplicate RAG logic)
+- Scores source hits, keyword coverage, refusal correctness, and pass/fail
+- Writes detailed results and a beginner-friendly markdown report
+
+**Beginner metrics**
+
+| Metric | Meaning |
+|--------|---------|
+| Source hit rate | Share of questions where the expected source check passed |
+| Keyword hit rate | Average share of expected keywords found in answerable answers |
+| Refusal accuracy | Share of refuse questions that include the fixed refusal message |
+| Pass rate | Share of gold rows that meet the v0.1 pass rule |
+
+**Implementation details**
+
+| Setting | Value |
+|---------|-------|
+| Entry point | `python -m src.evaluate` |
+| Gold set | `evals/gold_questions.csv` |
+| Detailed results | `evals/eval_results.csv` |
+| Report | `reports/evaluation_report.md` |
+| Backend | `answer_question()` from `src/generate.py` |
+| Style | Simple v0.1 rules (not RAGAS / not LLM-as-judge) |
+
+Pipeline reminder:
+
+`PDFs -> Ingestion -> Chunking -> Embeddings -> Chroma Vector Store -> Retrieval -> Grounded Generation -> Streamlit UI -> Evaluation`
 
 ## Metadata Schema
 
@@ -220,4 +250,4 @@ Metadata matters because retrieval returns chunks, but users need `source_file` 
 
 - `.env` is gitignored; only `.env.example` with placeholders is committed
 - Phase 1 (ingest/chunk) runs fully offline
-- Phases 2, 3, 4, and 5 call the OpenAI API - requires a real API key in local `.env` only
+- Phases 2, 3, 4, 5, and 6 call the OpenAI API - requires a real API key in local `.env` only

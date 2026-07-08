@@ -1,1 +1,11 @@
-question,expected_source,expected_answer_notes
+id,question,expected_source,expected_keywords,expected_behavior
+q01,What is prompt injection?,owasp-llm-top-10-v2025.pdf,prompt injection|LLM|manipulate,answer
+q02,What are the core functions of the NIST AI Risk Management Framework?,nist-ai-100-1.pdf,Govern|Map|Measure|Manage,answer
+q03,What risks are specific to generative AI systems?,nist-ai-600-1.pdf,generative|risk|AI,answer
+q04,How does cybersecurity governance connect to AI governance?,nist-cswp-29.pdf,governance|cybersecurity|risk,answer
+q05,What is insecure output handling in LLM applications?,owasp-llm-top-10-v2025.pdf,output|LLM|insecure,answer
+q06,What do the Map and Measure functions cover in the NIST AI RMF?,nist-ai-100-1.pdf,Map|Measure|AI,answer
+q07,What is the NIST Generative AI Profile and why does trustworthiness matter?,nist-ai-600-1.pdf,generative|trustworth|profile,answer
+q08,What is my company's refund policy?,none,,refuse
+q09,Who is the CEO of my company?,none,,refuse
+q10,What is the weather in Bangalore today?,none,,refuse
