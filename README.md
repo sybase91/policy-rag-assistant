@@ -6,33 +6,25 @@ A beginner-friendly Python RAG (Retrieval-Augmented Generation) prototype for an
 
 This project builds a small RAG pipeline over public AI policy PDFs. You ask a question in plain English; the system retrieves relevant passages and generates an answer with citations back to the source document and page.
 
-**Current milestone:** Grounded answer generation (Phase 4).
+**Current milestone:** Streamlit Chat UI (Phase 5).
+
+## What Phase 5 Does
+
+Phase 4 generated answers in the terminal. Phase 5 adds a **local web chat UI**:
+
+1. **Streamlit** - A Python library that turns scripts into simple local web apps.
+2. **Chat UI** - Type questions and see answers in a conversational thread.
+3. **`st.chat_input`** - The text box at the bottom for new questions.
+4. **`st.chat_message`** - Renders user and assistant message bubbles.
+5. **Session state** - `st.session_state` keeps chat history while the app is open.
+6. **Calls `answer_question()`** - The UI does not duplicate RAG logic; it uses the Phase 4 backend.
+7. **Sources shown separately** - Answers are readable prose; sources appear in an expander for verification.
+
+This is a **local prototype only** — not deployed to the cloud.
 
 ## What Phase 4 Does
 
-Phase 3 finds relevant chunks. Phase 4 **writes** a grounded answer from those chunks:
-
-1. **Generation in RAG** - The LLM turns retrieved passages into a readable answer.
-2. **Grounded generation** - The answer must use only the retrieved context, not outside knowledge.
-3. **Why pass chunks to the LLM** - The model has not read your PDFs; chunks are its only evidence.
-4. **Citations** - Answers cite sources like `[owasp-llm-top-10-v2025.pdf, page 6]` so you can verify claims.
-5. **Refusal** - Unsupported questions (e.g. refund policy) get a safe refusal instead of a made-up answer.
-6. **Terminal only** - This phase runs in the terminal. A Streamlit UI comes later.
-
-## What Phase 3 Does
-
-Phase 2 built a searchable index. Phase 3 **finds** the right passages for a question:
-
-1. **Retrieval** - Given a question, search the Chroma index for the most relevant policy chunks.
-2. **Similarity search** - The question is embedded into numbers, then compared to stored chunk vectors.
-3. **Metadata for citations** - Each result includes `source_file`, `page`, and `chunk_id`.
-
-## What Phase 2 Does
-
-Phase 1 turned PDFs into text chunks. Phase 2 gave those chunks **meaning** that a computer can search:
-
-1. **Embedding** - Each chunk is sent to OpenAI, which returns a list of numbers representing the chunk's meaning.
-2. **Vector database** - Those number-lists are stored in Chroma, a local database optimized for similarity search.
+Phase 3 finds relevant chunks. Phase 4 writes a grounded answer from those chunks with citations and refusal for unsupported questions.
 
 ## Corpus
 
@@ -60,18 +52,10 @@ src/retrieve.py    Similarity search over Chroma
     |
 src/generate.py    Grounded answer with citations
     |
-app/streamlit_app.py   Chat UI                            [TODO]
+app/streamlit_app.py   Chat UI
     |
 src/evaluate.py    Run against gold questions             [TODO]
 ```
-
-### Metadata Schema
-
-Each chunk carries:
-
-- `source_file` - PDF filename (e.g. `nist-ai-100-1.pdf`)
-- `page` - 0-based page number
-- `chunk_id` - unique ID (e.g. `nist-ai-100-1.pdf_p12_c003`)
 
 See [reports/architecture.md](reports/architecture.md) for more detail.
 
@@ -128,63 +112,52 @@ Edit `.env` and replace the placeholder with your **real** OpenAI API key:
 OPENAI_API_KEY=sk-your-real-key-here
 ```
 
-> **Required for Phases 2, 3, and 4.** Embeddings, retrieval, and generation call the OpenAI API. Phase 1 (ingest/chunk) still works offline without a key.
->
-> **Never commit `.env`.** It is listed in `.gitignore`.
+> **Required for Phases 2-5.** Never commit `.env` — it is listed in `.gitignore`.
 
-### 6. Build the Chroma index (prerequisite for retrieval and generation)
+### 6. Build the Chroma index (prerequisite)
 
 ```bash
 python -m src.embed --rebuild
 ```
 
-## Current Milestone - Grounded Generation
+## Current Milestone - Streamlit Chat UI
 
 Run this command from the project root with your virtual environment active:
 
 ```bash
-python -m src.generate
+streamlit run app/streamlit_app.py
 ```
 
-This is **terminal-based answer generation**, not a UI yet.
+Opens a local web app (typically http://localhost:8501).
 
 ### Prerequisites
 
-- Chroma index must exist (`python -m src.embed --rebuild` if missing)
+- Chroma index built (`python -m src.embed --rebuild`)
 - Real `OPENAI_API_KEY` in local `.env`
+- PDFs in `data/raw/`
 
-### Example questions tested
+### Example questions
 
-1. What is prompt injection?
-2. What are the core functions of the NIST AI Risk Management Framework?
-3. What risks are specific to generative AI systems?
-4. How does cybersecurity governance connect to AI governance?
-5. What is my company's refund policy? (expected refusal - not in corpus)
+- What is prompt injection?
+- What are the core functions of the NIST AI RMF?
+- What risks are specific to generative AI systems?
+- How does cybersecurity governance connect to AI governance?
+- What is my company's refund policy? (expected refusal)
 
-### Expected output
+### Expected behavior
 
-```
-Phase 4 Grounded Generation Demo
-Chat model: gpt-4o-mini (temperature=0)
-============================================================
-
-Question: What is prompt injection?
-
-Answer:
-Prompt injection is ... [owasp-llm-top-10-v2025.pdf, page 6]
-
-Sources:
-1. owasp-llm-top-10-v2025.pdf, page 6, chunk_id=owasp-llm-top-10-v2025.pdf_p6_c000
-2. ...
-```
-
-For the refund policy question, expect a refusal such as:
-
-`I don't know based on the provided documents.`
+- Chat thread with user and assistant messages
+- Spinner while the answer is generated
+- Grounded answer with inline citations
+- **Sources used** expander with `source_file`, `page`, `chunk_id`
+- **Debug info** expander with chunk count and model name
+- **Clear chat** button in the sidebar
+- Feedback buttons show a placeholder message (not saved yet)
 
 ### Earlier phase commands (still useful)
 
 ```bash
+python -m src.generate            # Phase 4: terminal answers
 python -m src.retrieve            # Phase 3: retrieval only
 python -m src.embed --rebuild     # Phase 2: build index
 python -m src.ingest              # Phase 1: load PDFs
@@ -193,8 +166,7 @@ python -m src.chunk               # Phase 1: chunk text
 
 ## Next Milestones
 
-1. **Streamlit UI** - `app/streamlit_app.py`: interactive chat interface
-2. **Evaluation** - `src/evaluate.py`: test against `evals/gold_questions.csv`
+1. **Evaluation** - `src/evaluate.py`: test against `evals/gold_questions.csv`
 
 ## Project Structure
 
@@ -212,7 +184,7 @@ policy-rag-assistant/
 ?   ??? generate.py       # Grounded answer generation
 ?   ??? evaluate.py       # [TODO]
 ??? app/
-?   ??? streamlit_app.py  # [TODO]
+?   ??? streamlit_app.py  # Chat UI
 ??? evals/
 ?   ??? gold_questions.csv
 ??? reports/

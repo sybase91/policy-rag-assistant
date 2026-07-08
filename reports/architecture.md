@@ -7,7 +7,7 @@ This document describes the RAG pipeline architecture, data flow, and implementa
 ## Full Pipeline
 
 ```
-PDFs -> Ingestion -> Chunking -> Embeddings -> Chroma Vector Store -> Retrieval -> Grounded Generation -> UI TODO -> Evaluation TODO
+PDFs -> Ingestion -> Chunking -> Embeddings -> Chroma Vector Store -> Retrieval -> Grounded Generation -> Streamlit UI -> Evaluation TODO
 ```
 
 ## Corpus Sources
@@ -148,9 +148,43 @@ If retrieved context is weak or unrelated, the model should state that the docum
 | Prerequisite | Chroma index from `python -m src.embed --rebuild` |
 | API key | Required (retrieval embeddings + chat completion) |
 
-### 6. UI (`app/streamlit_app.py`) - Planned
+### 6. UI (`app/streamlit_app.py`) - Implemented
 
-- Streamlit chat interface for interactive Q&A
+Phase 5 adds a local Streamlit chat interface on top of the existing RAG backend.
+
+**What the UI layer does**
+
+The UI is presentation only. It does not duplicate retrieval, embedding, or generation logic. When a user asks a question, the app calls `answer_question()` from [`src/generate.py`](src/generate.py).
+
+**Streamlit components**
+
+- `st.chat_input` - text box for new questions
+- `st.chat_message` - renders user and assistant message bubbles
+- `st.session_state` - stores chat history across reruns
+- Sidebar - corpus info, architecture flow, example questions, Clear chat button
+
+**Error handling**
+
+- Pre-flight checks for API key and Chroma index before calling the backend
+- Friendly `st.error` messages instead of crashing the app
+- `try/except` around `answer_question()` for unexpected errors
+
+**Sources and debug info**
+
+- Answer text shown in the assistant bubble
+- "Sources used" expander lists `source_file`, `page`, `chunk_id`
+- "Debug info" expander shows retrieved chunk count and model name
+- Feedback buttons are placeholders only (no persistence yet)
+
+**Implementation details**
+
+| Setting | Value |
+|---------|-------|
+| Entry point | `streamlit run app/streamlit_app.py` |
+| Backend | `answer_question()` |
+| Layout | Wide |
+| Page icon | Brain emoji |
+| Feedback | Placeholder only |
 
 ### 7. Evaluation (`src/evaluate.py`) - Planned
 
@@ -186,4 +220,4 @@ Metadata matters because retrieval returns chunks, but users need `source_file` 
 
 - `.env` is gitignored; only `.env.example` with placeholders is committed
 - Phase 1 (ingest/chunk) runs fully offline
-- Phases 2, 3, and 4 call the OpenAI API - requires a real API key in local `.env` only
+- Phases 2, 3, 4, and 5 call the OpenAI API - requires a real API key in local `.env` only
