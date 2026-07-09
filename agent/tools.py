@@ -224,85 +224,92 @@ def missing_info_tool(
     user_query: str,
     scenario_facts: dict,
     retrieved_chunks: list[dict],
-) -> list[str]:
-    """Return policy-area aware missing information."""
+) -> dict:
+    """Return blocking missing info and open questions separately."""
     text = user_query.lower()
-    missing: list[str] = []
+    blocking: list[str] = []
+    open_questions: list[str] = []
     policy_area = scenario_facts.get("policy_area", "general")
 
     if not retrieved_chunks:
-        missing.append("relevant policy evidence")
+        blocking.append("relevant policy evidence")
 
     if policy_area == "reimbursement":
         if scenario_facts.get("amount") is None:
-            missing.append("amount")
-        if "receipt mentioned" not in scenario_facts.get("documentation_provided", []) and "lost receipt" not in scenario_facts.get("documentation_provided", []):
+            blocking.append("amount")
+        docs = scenario_facts.get("documentation_provided", [])
+        if "receipt mentioned" not in docs and "lost receipt" not in docs:
             if "receipt" not in text and "lost" not in text:
-                missing.append("itemized receipt")
+                open_questions.append("itemized receipt")
         if "business purpose" not in text:
-            missing.append("business purpose")
+            open_questions.append("business purpose")
         if scenario_facts.get("external_parties_involved") and "attendee" not in text and "guest" not in text:
-            missing.append("attendee names")
+            open_questions.append("attendee names")
         if scenario_facts.get("approval_status") == "unknown":
-            missing.append("approval status")
-        if scenario_facts.get("expense_type") in {"client dinner", "meal"} and not scenario_facts.get("alcohol_mentioned"):
+            open_questions.append("approval status")
+        if scenario_facts.get("expense_type") in {"client dinner", "meal"} and not scenario_facts.get(
+            "alcohol_mentioned"
+        ):
             if "alcohol" not in text:
-                missing.append("whether alcohol was included")
+                open_questions.append("whether alcohol was included")
 
     elif policy_area == "gifts_hospitality":
         if scenario_facts.get("gift_value") is None and scenario_facts.get("amount") is None:
-            missing.append("gift value")
-        if not scenario_facts.get("people_involved"):
-            missing.append("giver/recipient details")
-        if "vendor" not in text and "client" not in text:
-            missing.append("whether vendor or client is involved")
+            blocking.append("gift value")
         if not scenario_facts.get("cash_gift") and "cash" not in text:
-            missing.append("whether the gift is cash or cash equivalent")
-        if scenario_facts.get("public_official_involved") is False and "public official" not in text:
-            missing.append("whether a public official is involved")
+            open_questions.append("whether the gift is cash or cash equivalent")
+        if not scenario_facts.get("public_official_involved") and "public official" not in text:
+            open_questions.append("whether a public official is involved")
+        if "vendor" not in text and "client" not in text:
+            open_questions.append("whether vendor or client is involved")
 
     elif policy_area == "remote_work":
         if not scenario_facts.get("duration"):
-            missing.append("remote work duration")
+            open_questions.append("remote work duration")
         if "location" not in text and not scenario_facts.get("location"):
-            missing.append("work location")
+            open_questions.append("work location")
         if scenario_facts.get("approval_status") == "unknown":
-            missing.append("manager approval")
+            open_questions.append("manager approval")
         if scenario_facts.get("medical_reason") and "hr" not in text:
-            missing.append("HR approval for medical exception")
+            open_questions.append("HR approval for medical exception")
         if scenario_facts.get("cross_border_work"):
-            missing.append("cross-border approval details")
+            open_questions.append("cross-border approval details")
 
     elif policy_area == "data_access":
         if not scenario_facts.get("data_types"):
-            missing.append("type of data")
-        if scenario_facts.get("external_vendor_involved") and scenario_facts.get("approval_status") == "unknown":
-            missing.append("Information Security approval status")
+            blocking.append("type of data")
+        if scenario_facts.get("external_vendor_involved") and scenario_facts.get(
+            "approval_status"
+        ) == "unknown":
+            open_questions.append("Information Security approval status")
         if scenario_facts.get("sensitive_data_involved"):
-            missing.append("data classification")
+            open_questions.append("data classification")
 
-    return list(dict.fromkeys(missing))
+    blocking = list(dict.fromkeys(blocking))
+    open_questions = list(dict.fromkeys(open_questions))
+    return {
+        "blocking_missing_info": blocking,
+        "open_questions": open_questions,
+        "missing_info": blocking + open_questions,
+    }
 
 
 def generate_clarifying_question_tool(
-    missing_info: list[str],
+    open_questions: list[str],
     scenario_facts: dict,
     decision_result: dict,
 ) -> str | None:
-    """Generate a short clarifying question when key details are missing."""
-    if not missing_info:
+    """Generate a short clarifying question from open questions."""
+    if not open_questions:
         return None
 
     policy_area = scenario_facts.get("policy_area", "general")
-    missing_text = " ".join(missing_info).lower()
 
     if policy_area == "reimbursement":
-        return (
-            "Was alcohol included in the bill, and do you already have manager approval?"
-        )
+        return "Was alcohol included in the bill, and do you already have manager approval?"
     if policy_area == "gifts_hospitality":
         return (
-            "What is the approximate value of the gift, and is the giver a vendor, client, or public official?"
+            "Is the gift cash or cash equivalent, and is any public official involved?"
         )
     if policy_area == "remote_work":
         return (
@@ -310,46 +317,55 @@ def generate_clarifying_question_tool(
         )
     if policy_area == "data_access":
         return (
-            "What type of customer data will be shared, and has Security or Legal approved the external vendor?"
+            "What type of customer data will be shared, and has Security or Legal approved the vendor?"
         )
-    if "receipt" in missing_text:
+    if any("receipt" in item for item in open_questions):
         return "Do you have an itemized receipt or approved lost-receipt documentation?"
-    return "Can you provide the missing details listed above before submitting this request?"
+    return "Can you confirm the open questions listed above before proceeding?"
 
 
 def generate_next_steps_tool(
     decision: str,
-    missing_info: list[str],
+    open_questions: list[str],
     required_approvals: list[str] | None = None,
+    blocking_missing_info: list[str] | None = None,
 ) -> list[str]:
     """Generate recommended next steps."""
     steps: list[str] = []
     required_approvals = required_approvals or []
+    blocking_missing_info = blocking_missing_info or []
 
-    if missing_info:
-        steps.append("Confirm the missing information before submitting the request.")
-        for item in missing_info:
-            steps.append(f"Provide {item}.")
+    if decision in {"Needs approval", "Escalate"}:
+        steps.append("Do not proceed until the required approvals are confirmed.")
 
     for approval in required_approvals:
         steps.append(f"Request {approval} approval if not already obtained.")
 
-    if decision == "Needs approval":
-        steps.append(
-            "Check whether manager, Finance, HR, Legal, or Information Security approval is required."
-        )
-    if decision == "Escalate":
-        steps.append("Escalate this request to the appropriate governance team before proceeding.")
+    for item in blocking_missing_info:
+        steps.append(f"Provide {item} before submitting.")
 
-    steps.append("Attach relevant receipts or supporting documents.")
+    for item in open_questions[:3]:
+        steps.append(f"Confirm {item}.")
+
+    if decision == "Escalate":
+        steps.append("Escalate this request to the appropriate governance team.")
+    if decision == "Not allowed":
+        steps.append("Do not proceed until Compliance confirms an exception is possible.")
+
     steps.append("Review the cited Acme Corp policy sections before taking action.")
-    return list(dict.fromkeys(steps))
+    return list(dict.fromkeys(steps))[:6]
 
 
 def basic_decision_tool(
     scenario_facts: dict,
     retrieved_chunks: list[dict],
-    missing_info: list[str],
+    blocking_missing_info: list[str],
+    open_questions: list[str] | None = None,
 ) -> dict:
-    """Backward-compatible wrapper around Phase 2 policy decision logic."""
-    return make_policy_decision(scenario_facts, retrieved_chunks, missing_info)
+    """Backward-compatible wrapper around policy decision logic."""
+    return make_policy_decision(
+        scenario_facts,
+        retrieved_chunks,
+        blocking_missing_info,
+        open_questions,
+    )

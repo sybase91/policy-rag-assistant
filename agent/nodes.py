@@ -87,18 +87,26 @@ def check_missing_info_node(state: AgentState) -> AgentState:
     """Identify missing information needed for a confident decision."""
     add_trace_step(state, "check_missing_info", "started", "Checking for missing scenario details.")
     try:
-        missing = missing_info_tool(
+        classified = missing_info_tool(
             state["user_query"],
             state["scenario_facts"],
             state["retrieved_chunks"],
         )
-        state["missing_info"] = missing
+        state["blocking_missing_info"] = classified["blocking_missing_info"]
+        state["open_questions"] = classified["open_questions"]
+        state["missing_info"] = classified["missing_info"]
         add_trace_step(
             state,
             "check_missing_info",
             "completed",
-            f"Missing info check completed with {len(missing)} item(s).",
-            {"missing_info": missing},
+            (
+                f"Blocking: {len(state['blocking_missing_info'])}, "
+                f"open questions: {len(state['open_questions'])}."
+            ),
+            {
+                "blocking_missing_info": state["blocking_missing_info"],
+                "open_questions": state["open_questions"],
+            },
         )
     except Exception as exc:  # noqa: BLE001
         add_trace_step(state, "check_missing_info", "failed", f"Missing info check failed: {exc}")
@@ -112,7 +120,8 @@ def make_policy_decision_node(state: AgentState) -> AgentState:
         decision_result = make_policy_decision(
             state["scenario_facts"],
             state["retrieved_chunks"],
-            state["missing_info"],
+            state["blocking_missing_info"],
+            state.get("open_questions", []),
         )
         state["policy_decision"] = decision_result["decision"]
         state["risk_level"] = decision_result["risk_level"]
@@ -120,6 +129,9 @@ def make_policy_decision_node(state: AgentState) -> AgentState:
         state["rationale_bullets"] = decision_result.get("rationale_bullets", [])
         state["required_approvals"] = decision_result.get("required_approvals", [])
         state["decision_factors"] = decision_result.get("decision_factors", {})
+        state["open_questions"] = decision_result.get(
+            "open_questions", state.get("open_questions", [])
+        )
         add_trace_step(
             state,
             "make_policy_decision",
@@ -188,7 +200,7 @@ def generate_clarifying_question_node(state: AgentState) -> AgentState:
     )
     try:
         question = generate_clarifying_question_tool(
-            state.get("missing_info", []),
+            state.get("open_questions", []),
             state.get("scenario_facts", {}),
             {
                 "decision": state.get("policy_decision"),
@@ -219,8 +231,9 @@ def generate_next_steps_node(state: AgentState) -> AgentState:
     try:
         steps = generate_next_steps_tool(
             state["policy_decision"],
-            state["missing_info"],
+            state.get("open_questions", []),
             state.get("required_approvals", []),
+            state.get("blocking_missing_info", []),
         )
         state["next_steps"] = steps
         add_trace_step(

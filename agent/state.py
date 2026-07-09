@@ -12,6 +12,8 @@ class AgentState(TypedDict):
     intent: str
     scenario_facts: dict
     missing_info: list[str]
+    blocking_missing_info: list[str]
+    open_questions: list[str]
     retrieved_chunks: list[dict]
     policy_decision: str
     risk_level: str
@@ -37,6 +39,8 @@ def create_initial_state(user_query: str) -> AgentState:
         "intent": "",
         "scenario_facts": {},
         "missing_info": [],
+        "blocking_missing_info": [],
+        "open_questions": [],
         "retrieved_chunks": [],
         "policy_decision": "",
         "risk_level": "",

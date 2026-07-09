@@ -1,6 +1,7 @@
-"""Citation verification for PolicyOps Agent Phase 2.
+"""Citation verification for PolicyOps Agent.
 
-Only retrieved chunks may be cited. This reduces fabricated or unsupported references.
+Only retrieved chunks may be cited. Weak citation coverage lowers confidence
+but does not override a useful provisional decision when evidence exists.
 """
 
 from __future__ import annotations
@@ -10,11 +11,13 @@ import re
 SECTION_ID_REGEX = re.compile(r"\b(TE|RE|GH|RW|AM|DA)-\d{3}\b")
 
 
-def _chunk_key(chunk: dict) -> tuple[str, str]:
-    return (
-        str(chunk.get("source", "")),
-        str(chunk.get("section_id") or ""),
-    )
+def clean_excerpt(text: str, max_chars: int = 220) -> str:
+    """Strip markdown headings and truncate excerpt text for display."""
+    cleaned = re.sub(r"^#{1,6}\s*", "", text, flags=re.MULTILINE)
+    cleaned = re.sub(r"\s+", " ", cleaned).strip()
+    if len(cleaned) <= max_chars:
+        return cleaned
+    return cleaned[: max_chars - 3].rstrip() + "..."
 
 
 def verify_citations(decision_result: dict, retrieved_chunks: list[dict]) -> dict:
@@ -47,16 +50,18 @@ def verify_citations(decision_result: dict, retrieved_chunks: list[dict]) -> dic
             continue
         seen.add(key)
 
-        excerpt = (chunk.get("text") or "").strip().replace("\n", " ")
-        if len(excerpt) > 180:
-            excerpt = excerpt[:180] + "..."
+        section_title = section
+        if section_id and section.startswith(section_id):
+            section_title = section[len(section_id) :].strip(" -")
 
         verified.append(
             {
                 "source": source,
                 "section": section,
                 "section_id": section_id,
-                "supporting_text_excerpt": excerpt,
+                "section_title": section_title or section,
+                "supporting_text_excerpt": clean_excerpt(chunk.get("text", ""), max_chars=220),
+                "full_text": chunk.get("text", ""),
             }
         )
 
@@ -71,7 +76,7 @@ def verify_citations(decision_result: dict, retrieved_chunks: list[dict]) -> dic
     if decision_result.get("decision") in {"Needs approval", "Allowed", "Escalate"} and not verified:
         warnings.append("Decision was made without verified supporting citations.")
 
-    if decision_result.get("decision") != "Needs more information" and coverage < 0.34:
+    if decision_result.get("decision") not in {"Needs more information"} and coverage < 0.34:
         warnings.append("Citation coverage is weak for the current decision.")
 
     return {
@@ -82,19 +87,25 @@ def verify_citations(decision_result: dict, retrieved_chunks: list[dict]) -> dic
 
 
 def apply_citation_adjustments(decision_result: dict, verification: dict) -> dict:
-    """Lower confidence or adjust decision when citations are weak."""
+    """Lower confidence when citations are weak; avoid overriding provisional decisions."""
     adjusted = dict(decision_result)
     confidence = float(adjusted.get("confidence", 0.0))
     warnings = verification.get("citation_warnings", [])
-    coverage = float(verification.get("citation_coverage", 0.0))
+    verified = verification.get("verified_citations", [])
 
     if warnings:
-        confidence = max(0.1, confidence - 0.08 * len(warnings))
+        confidence = max(0.12, confidence - 0.06 * len(warnings))
 
-    if coverage < 0.34 and adjusted.get("decision") not in {"Needs more information"}:
-        confidence = min(confidence, 0.55)
-        if not verification.get("verified_citations"):
-            adjusted["decision"] = "Needs more information"
+    if not verified and adjusted.get("decision") not in {
+        "Needs more information",
+        "Not allowed",
+        "Escalate",
+    }:
+        confidence = min(confidence, 0.45)
+        adjusted["decision"] = "Needs more information"
+    elif verified and adjusted.get("decision") == "Needs more information":
+        # Keep blocking decisions; do not auto-upgrade here.
+        pass
 
     adjusted["confidence"] = round(confidence, 2)
     return adjusted

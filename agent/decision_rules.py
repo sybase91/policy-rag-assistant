@@ -1,14 +1,14 @@
-"""Deterministic policy decision rules for PolicyOps Agent Phase 2.
+"""Deterministic policy decision rules for PolicyOps Agent.
 
-These rules combine scenario facts and retrieved evidence into a conservative
-structured decision. They are not legal advice.
+Decisions prioritize the most useful conservative outcome. Secondary missing
+details become open questions rather than forcing "Needs more information".
 """
 
 from __future__ import annotations
 
 from agent.schemas import DECISION_VALUES, RISK_VALUES
 
-SECTION_ID_PATTERN = r"\b(TE|RE|GH|RW|AM|DA)-\d{3}\b"
+BLOCKING_EVIDENCE = "relevant policy evidence"
 
 
 def _top_score(chunks: list[dict]) -> float:
@@ -17,32 +17,43 @@ def _top_score(chunks: list[dict]) -> float:
     return max(float(chunk.get("score") or 0.0) for chunk in chunks)
 
 
-def _has_section(chunks: list[dict], prefix: str) -> bool:
-    for chunk in chunks:
-        section_id = (chunk.get("section_id") or "") or ""
-        if section_id.startswith(prefix):
-            return True
-        section = chunk.get("section", "")
-        if isinstance(section, str) and section.startswith(prefix):
-            return True
-    return False
-
-
-def _base_confidence(chunks: list[dict], missing_info: list[str]) -> float:
+def _base_confidence(
+    chunks: list[dict],
+    blocking_missing_info: list[str],
+    open_questions: list[str] | None = None,
+) -> float:
     score = _top_score(chunks)
-    confidence = 0.45 + (score * 0.35)
-    confidence -= min(len(missing_info), 4) * 0.06
+    confidence = 0.48 + (score * 0.32)
+    confidence -= min(len(blocking_missing_info), 3) * 0.1
+    confidence -= min(len(open_questions or []), 4) * 0.03
     if not chunks:
-        confidence = 0.25
+        confidence = 0.28
     elif score < 0.35:
-        confidence = min(confidence, 0.45)
-    return round(max(0.1, min(confidence, 0.92)), 2)
+        confidence = min(confidence, 0.5)
+    return round(max(0.12, min(confidence, 0.9)), 2)
+
+
+def _blocked(decision: str, blocking_missing_info: list[str], chunks: list[dict]) -> str:
+    """Downgrade to Needs more information only when truly blocked."""
+    if not blocking_missing_info:
+        return decision
+    if BLOCKING_EVIDENCE in blocking_missing_info or not chunks:
+        return "Needs more information"
+    essential_blockers = {
+        "amount",
+        "gift value",
+        "type of data",
+    }
+    if any(item in blocking_missing_info for item in essential_blockers):
+        return "Needs more information"
+    return decision
 
 
 def evaluate_reimbursement_case(
     scenario_facts: dict,
     retrieved_chunks: list[dict],
-    missing_info: list[str],
+    blocking_missing_info: list[str],
+    open_questions: list[str] | None = None,
 ) -> dict:
     """Apply reimbursement and client meal rules."""
     amount = scenario_facts.get("amount") or scenario_facts.get("gift_value")
@@ -63,50 +74,44 @@ def evaluate_reimbursement_case(
         }
 
     rationale.append(
-        "Reimbursement requests must be supported by policy sections and complete documentation."
+        "Reimbursement must follow retrieved travel and expense policy thresholds."
     )
 
     if scenario_facts.get("external_parties_involved") or "client" in str(
         scenario_facts.get("expense_type", "")
     ).lower():
         rationale.append(
-            "Client meals require business purpose, attendee details, itemized receipt, and approval."
+            "Client meals with external guests require documented business purpose and approval."
         )
 
     if currency == "INR" and isinstance(amount, (int, float)):
         if amount > 25000:
-            decision = "Needs approval"
             approvals.append("Finance")
             rationale.append("Client meals above INR 25,000 require Finance approval.")
         elif amount > 10000:
-            decision = "Needs approval"
             approvals.append("Manager")
             rationale.append("Client meals above INR 10,000 require manager approval.")
 
     if scenario_facts.get("payment_method") == "personal card":
         rationale.append(
-            "Personal card usage is allowed when documentation is complete and policy rules are met."
+            "Personal card reimbursement is permitted when policy rules and documentation are met."
         )
 
-    if "itemized receipt" in missing_info or "lost receipt" in str(
-        scenario_facts.get("documentation_provided", [])
-    ):
-        decision = "Needs more information"
-        rationale.append("Receipt or lost-receipt documentation is required before approval.")
-
     if scenario_facts.get("alcohol_mentioned"):
-        decision = "Needs approval"
         approvals.append("Finance")
-        rationale.append("Alcohol generally requires explicit Finance approval.")
+        rationale.append("Alcohol requires explicit Finance approval.")
 
-    if missing_info:
+    if "lost receipt" in str(scenario_facts.get("documentation_provided", [])):
         decision = "Needs more information"
+        rationale.append("Lost-receipt claims need alternate documentation before approval.")
+
+    decision = _blocked(decision, blocking_missing_info, retrieved_chunks)
 
     return {
         "decision": decision,
         "risk_level": risk_level,
-        "confidence": _base_confidence(retrieved_chunks, missing_info),
-        "rationale_bullets": rationale,
+        "confidence": _base_confidence(retrieved_chunks, blocking_missing_info, open_questions),
+        "rationale_bullets": rationale[:4],
         "required_approvals": list(dict.fromkeys(approvals)),
         "decision_factors": {"policy_area": "reimbursement", "amount": amount},
     }
@@ -115,7 +120,8 @@ def evaluate_reimbursement_case(
 def evaluate_gift_case(
     scenario_facts: dict,
     retrieved_chunks: list[dict],
-    missing_info: list[str],
+    blocking_missing_info: list[str],
+    open_questions: list[str] | None = None,
 ) -> dict:
     """Apply gifts and hospitality rules."""
     amount = scenario_facts.get("gift_value") or scenario_facts.get("amount")
@@ -126,7 +132,7 @@ def evaluate_gift_case(
 
     if scenario_facts.get("cash_gift"):
         return {
-            "decision": "Not allowed",
+            "decision": "Escalate",
             "risk_level": "High",
             "confidence": 0.82,
             "rationale_bullets": ["Cash and cash-equivalent gifts are not acceptable."],
@@ -148,24 +154,29 @@ def evaluate_gift_case(
 
     if amount is None:
         decision = "Needs more information"
-        rationale.append("Gift value must be confirmed before a decision can be made.")
+        rationale.append("Gift value must be confirmed before a threshold decision.")
     elif isinstance(amount, (int, float)) and amount >= 10000:
-        decision = "Needs approval"
         approvals.append("Compliance")
         rationale.append("Gifts above INR 10,000 require manager and Compliance approval.")
 
-    if missing_info:
-        decision = "Needs more information"
+    if scenario_facts.get("vendor_or_client_involved"):
+        rationale.append(
+            "Vendor or client gifts create conflict-of-interest risk and need compliance review."
+        )
 
     if not retrieved_chunks:
         decision = "Needs more information"
         rationale.append("No supporting gift policy sections were retrieved.")
+    else:
+        rationale.append("Retrieved gift policy sections support an approval-based response.")
+
+    decision = _blocked(decision, blocking_missing_info, retrieved_chunks)
 
     return {
         "decision": decision,
         "risk_level": risk_level,
-        "confidence": _base_confidence(retrieved_chunks, missing_info),
-        "rationale_bullets": rationale or ["Gift requests must follow Acme Corp hospitality policy."],
+        "confidence": _base_confidence(retrieved_chunks, blocking_missing_info, open_questions),
+        "rationale_bullets": rationale[:4] or ["Gift requests must follow Acme hospitality policy."],
         "required_approvals": list(dict.fromkeys(approvals)),
         "decision_factors": {"policy_area": "gifts_hospitality", "gift_value": amount},
     }
@@ -174,14 +185,13 @@ def evaluate_gift_case(
 def evaluate_remote_work_case(
     scenario_facts: dict,
     retrieved_chunks: list[dict],
-    missing_info: list[str],
+    blocking_missing_info: list[str],
+    open_questions: list[str] | None = None,
 ) -> dict:
     """Apply remote work rules."""
     decision = "Needs approval"
     risk_level = "Medium"
-    rationale = [
-        "Extended or exception-based remote work requires documented approval."
-    ]
+    rationale = ["Extended or exception-based remote work requires documented approval."]
     approvals = ["Manager"]
 
     if scenario_facts.get("medical_reason"):
@@ -205,14 +215,13 @@ def evaluate_remote_work_case(
         approvals.append("HR")
         rationale.append("Remote work beyond a short period requires formal approval.")
 
-    if missing_info:
-        decision = "Needs more information"
+    decision = _blocked(decision, blocking_missing_info, retrieved_chunks)
 
     return {
         "decision": decision,
         "risk_level": risk_level,
-        "confidence": _base_confidence(retrieved_chunks, missing_info),
-        "rationale_bullets": rationale,
+        "confidence": _base_confidence(retrieved_chunks, blocking_missing_info, open_questions),
+        "rationale_bullets": rationale[:4],
         "required_approvals": list(dict.fromkeys(approvals)),
         "decision_factors": {"policy_area": "remote_work"},
     }
@@ -221,7 +230,8 @@ def evaluate_remote_work_case(
 def evaluate_data_access_case(
     scenario_facts: dict,
     retrieved_chunks: list[dict],
-    missing_info: list[str],
+    blocking_missing_info: list[str],
+    open_questions: list[str] | None = None,
 ) -> dict:
     """Apply data access and external sharing rules."""
     decision = "Needs approval"
@@ -232,7 +242,7 @@ def evaluate_data_access_case(
     approvals = ["Information Security"]
 
     if scenario_facts.get("external_vendor_involved"):
-        approvals.extend(["Manager", "Legal"])
+        approvals.extend(["Legal", "Compliance"])
         rationale.append(
             "Customer or confidential data shared with an external vendor requires Security review."
         )
@@ -246,18 +256,18 @@ def evaluate_data_access_case(
         "external_vendor_involved"
     ):
         decision = "Escalate"
-
-    if missing_info:
-        decision = "Needs more information"
+        approvals = list(dict.fromkeys(approvals + ["Legal", "Compliance"]))
 
     if not retrieved_chunks:
         decision = "Needs more information"
+    else:
+        decision = _blocked(decision, blocking_missing_info, retrieved_chunks)
 
     return {
         "decision": decision,
         "risk_level": risk_level,
-        "confidence": _base_confidence(retrieved_chunks, missing_info),
-        "rationale_bullets": rationale,
+        "confidence": _base_confidence(retrieved_chunks, blocking_missing_info, open_questions),
+        "rationale_bullets": rationale[:4],
         "required_approvals": list(dict.fromkeys(approvals)),
         "decision_factors": {"policy_area": "data_access"},
     }
@@ -266,7 +276,8 @@ def evaluate_data_access_case(
 def evaluate_travel_case(
     scenario_facts: dict,
     retrieved_chunks: list[dict],
-    missing_info: list[str],
+    blocking_missing_info: list[str],
+    open_questions: list[str] | None = None,
 ) -> dict:
     """Apply travel and hotel upgrade rules."""
     decision = "Needs approval"
@@ -276,17 +287,15 @@ def evaluate_travel_case(
 
     expense_type = str(scenario_facts.get("expense_type", "")).lower()
     if "upgrade" in expense_type or "hotel upgrade" in scenario_facts.get("raw_query", "").lower():
-        decision = "Needs approval"
         rationale.append("Hotel upgrades are generally not reimbursable without prior approval.")
 
-    if missing_info:
-        decision = "Needs more information"
+    decision = _blocked(decision, blocking_missing_info, retrieved_chunks)
 
     return {
         "decision": decision,
         "risk_level": risk_level,
-        "confidence": _base_confidence(retrieved_chunks, missing_info),
-        "rationale_bullets": rationale,
+        "confidence": _base_confidence(retrieved_chunks, blocking_missing_info, open_questions),
+        "rationale_bullets": rationale[:4],
         "required_approvals": approvals,
         "decision_factors": {"policy_area": "travel_expense"},
     }
@@ -295,7 +304,8 @@ def evaluate_travel_case(
 def evaluate_general_policy_case(
     scenario_facts: dict,
     retrieved_chunks: list[dict],
-    missing_info: list[str],
+    blocking_missing_info: list[str],
+    open_questions: list[str] | None = None,
 ) -> dict:
     """Fallback evaluator for broad policy questions."""
     if not retrieved_chunks:
@@ -311,7 +321,7 @@ def evaluate_general_policy_case(
     return {
         "decision": "Allowed",
         "risk_level": "Low",
-        "confidence": _base_confidence(retrieved_chunks, missing_info),
+        "confidence": _base_confidence(retrieved_chunks, blocking_missing_info, open_questions),
         "rationale_bullets": [
             "Retrieved policy sections appear relevant to the question asked."
         ],
@@ -323,28 +333,44 @@ def evaluate_general_policy_case(
 def make_policy_decision(
     scenario_facts: dict,
     retrieved_chunks: list[dict],
-    missing_info: list[str],
+    blocking_missing_info: list[str],
+    open_questions: list[str] | None = None,
 ) -> dict:
     """Route to the correct policy evaluator and return a structured decision."""
     policy_area = scenario_facts.get("policy_area", "general")
+    open_questions = open_questions or []
 
     if policy_area == "reimbursement":
-        result = evaluate_reimbursement_case(scenario_facts, retrieved_chunks, missing_info)
+        result = evaluate_reimbursement_case(
+            scenario_facts, retrieved_chunks, blocking_missing_info, open_questions
+        )
     elif policy_area == "gifts_hospitality":
-        result = evaluate_gift_case(scenario_facts, retrieved_chunks, missing_info)
+        result = evaluate_gift_case(
+            scenario_facts, retrieved_chunks, blocking_missing_info, open_questions
+        )
     elif policy_area == "remote_work":
-        result = evaluate_remote_work_case(scenario_facts, retrieved_chunks, missing_info)
+        result = evaluate_remote_work_case(
+            scenario_facts, retrieved_chunks, blocking_missing_info, open_questions
+        )
     elif policy_area == "data_access":
-        result = evaluate_data_access_case(scenario_facts, retrieved_chunks, missing_info)
+        result = evaluate_data_access_case(
+            scenario_facts, retrieved_chunks, blocking_missing_info, open_questions
+        )
     elif policy_area == "travel_expense":
-        result = evaluate_travel_case(scenario_facts, retrieved_chunks, missing_info)
+        result = evaluate_travel_case(
+            scenario_facts, retrieved_chunks, blocking_missing_info, open_questions
+        )
     else:
-        result = evaluate_general_policy_case(scenario_facts, retrieved_chunks, missing_info)
+        result = evaluate_general_policy_case(
+            scenario_facts, retrieved_chunks, blocking_missing_info, open_questions
+        )
 
     if result["decision"] not in DECISION_VALUES:
         result["decision"] = "Needs more information"
     if result["risk_level"] not in RISK_VALUES:
         result["risk_level"] = "Medium"
 
-    result["missing_info"] = missing_info
+    result["blocking_missing_info"] = blocking_missing_info
+    result["open_questions"] = open_questions
+    result["missing_info"] = blocking_missing_info + open_questions
     return result

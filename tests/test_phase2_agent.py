@@ -1,4 +1,4 @@
-"""Phase 2 PolicyOps Agent tests with mocked retrieval."""
+"""Phase 2 / 2.5 PolicyOps Agent tests with mocked retrieval."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 from agent.answer_formatter import format_final_answer
-from agent.citation_verifier import verify_citations
+from agent.citation_verifier import clean_excerpt, verify_citations
 from agent.graph import run_policy_agent
 from agent.state import create_initial_state
 from agent.tools import parse_scenario_tool
@@ -16,9 +16,11 @@ def _mock_chunk(
     section_id: str,
     source: str = "acme_travel_expense_policy.md",
     score: float = 0.82,
+    text: str | None = None,
 ) -> dict:
+    body = text or f"## {section_id} Example Section\nPolicy text for {section_id}."
     return {
-        "text": f"Policy text for {section_id}.",
+        "text": body,
         "source": source,
         "section": f"{section_id} Example Section",
         "section_id": section_id,
@@ -52,8 +54,8 @@ MOCK_REIMBURSEMENT_CHUNKS = [
 ]
 
 MOCK_GIFT_CHUNKS = [
-    _mock_chunk("GH-002", "acme_gifts_hospitality_policy.md"),
-    _mock_chunk("GH-004", "acme_gifts_hospitality_policy.md"),
+    _mock_chunk("GH-003", "acme_gifts_hospitality_policy.md", text="## GH-003 Gift Value Thresholds\nGifts above INR 10,000 require manager and Compliance approval."),
+    _mock_chunk("GH-006", "acme_gifts_hospitality_policy.md", text="## GH-006 Gift Register\nRecord gifts in the gift register."),
 ]
 
 MOCK_REMOTE_CHUNKS = [
@@ -84,10 +86,10 @@ class ClientDinnerReimbursementTest(unittest.TestCase):
             state["policy_decision"],
             {"Needs approval", "Needs more information"},
         )
-        self.assertIn(state["risk_level"], {"Medium", "High"})
-        self.assertGreater(len(state["retrieved_chunks"]), 0)
-        self.assertIn("Decision:", state["final_answer"])
-        self.assertIn("Disclaimer:", state["final_answer"])
+        self.assertIn("Manager", state.get("required_approvals", []))
+        self.assertTrue(state.get("open_questions"))
+        self.assertLess(len(state["final_answer"].split()), 600)
+        self.assertIn("Short answer:", state["final_answer"])
 
 
 class VendorGiftTest(unittest.TestCase):
@@ -99,16 +101,19 @@ class VendorGiftTest(unittest.TestCase):
         query = "Can I accept a INR 12,000 gift from a vendor?"
         state = run_policy_agent(query)
 
-        facts = state["scenario_facts"]
-        self.assertTrue(
-            facts.get("policy_area") == "gifts_hospitality"
-            or facts.get("vendor_or_client_involved")
-            or facts.get("amount") == 12000.0
-        )
+        self.assertEqual(state["scenario_facts"].get("amount"), 12000.0)
         self.assertIn(
             state["policy_decision"],
-            {"Needs approval", "Not allowed", "Escalate", "Needs more information"},
+            {"Needs approval", "Escalate"},
         )
+        self.assertNotEqual(state["policy_decision"], "Needs more information")
+        approvals = " ".join(state.get("required_approvals", []))
+        self.assertTrue(
+            "Compliance" in approvals or "Manager" in approvals,
+            msg="Expected Manager or Compliance in required approvals",
+        )
+        self.assertTrue(state.get("open_questions"))
+        self.assertLess(len(state["final_answer"].split()), 600)
 
 
 class MedicalRemoteWorkTest(unittest.TestCase):
@@ -120,17 +125,12 @@ class MedicalRemoteWorkTest(unittest.TestCase):
         query = "Am I allowed to work from home for two weeks because of a medical reason?"
         state = run_policy_agent(query)
 
-        facts = state["scenario_facts"]
-        self.assertTrue(
-            facts.get("policy_area") == "remote_work" or facts.get("medical_reason")
+        combined = (
+            state["final_answer"].lower()
+            + " "
+            + " ".join(state.get("required_approvals", [])).lower()
         )
-        answer_blob = state["final_answer"].lower()
-        approvals_blob = " ".join(state.get("required_approvals", [])).lower()
-        combined = answer_blob + " " + approvals_blob
-        self.assertTrue(
-            "approval" in combined or "hr" in combined,
-            msg="Expected approval or HR guidance in answer or required approvals",
-        )
+        self.assertTrue("approval" in combined or "hr" in combined)
 
 
 class CustomerDataVendorTest(unittest.TestCase):
@@ -143,9 +143,13 @@ class CustomerDataVendorTest(unittest.TestCase):
         state = run_policy_agent(query)
 
         self.assertIn(state["risk_level"], {"Medium", "High"})
-        self.assertIn(
-            state["policy_decision"],
-            {"Needs approval", "Escalate", "Needs more information"},
+        self.assertIn(state["policy_decision"], {"Needs approval", "Escalate"})
+        approvals = " ".join(state.get("required_approvals", []))
+        self.assertTrue(
+            any(
+                team in approvals
+                for team in ("Information Security", "Legal", "Compliance")
+            )
         )
 
 
@@ -180,6 +184,13 @@ class CitationVerifierTest(unittest.TestCase):
         self.assertTrue(cited_ids.issubset({"TE-004", "RE-005"}))
         self.assertNotIn("GH-999", cited_ids)
 
+    def test_clean_excerpt_strips_headings_and_truncates(self) -> None:
+        text = "## GH-003 Gift Value Thresholds\n\n" + ("A" * 300)
+        excerpt = clean_excerpt(text, max_chars=80)
+        self.assertNotIn("##", excerpt)
+        self.assertLessEqual(len(excerpt), 80)
+        self.assertTrue(excerpt.endswith("..."))
+
 
 class FinalAnswerFormatterTest(unittest.TestCase):
     """Structured final answer formatting."""
@@ -190,9 +201,12 @@ class FinalAnswerFormatterTest(unittest.TestCase):
         state["risk_level"] = "Medium"
         state["confidence"] = 0.75
         state["rationale_bullets"] = ["Manager approval is required."]
+        state["open_questions"] = ["whether alcohol was included"]
         state["verified_citations"] = [_mock_chunk("TE-004")]
         answer = format_final_answer(state)
         self.assertIn("Decision: Needs approval", answer)
+        self.assertIn("Short answer:", answer)
+        self.assertIn("Open questions:", answer)
         self.assertIn("Disclaimer:", answer)
 
 

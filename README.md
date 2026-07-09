@@ -276,7 +276,7 @@ streamlit run app/streamlit_app.py
 
 **Workflow:** classify → parse → retrieve → missing info → decide → verify citations → clarifying question → next steps → final answer.
 
-**How to test:** run `python -m unittest tests.test_phase2_agent -v`, then try Agent Mode in Streamlit.
+**How to test:** run `python -m unittest tests.test_phase2_agent -v`, then try PolicyOps Agent in Streamlit.
 
 **Limitations:** still rules-based (no LLM reasoning), no LangGraph, no persistent memory, synthetic policies only.
 
@@ -307,6 +307,155 @@ Add screenshots here after testing:
 - Retrieved source cards
 - Agent workflow trace
 - Developer debug view
+
+## UI Refactor: Separated Chat Modes and Threads
+
+The Streamlit app now keeps **Standard RAG Chat** and **PolicyOps Agent** in separate conversation threads so histories never mix.
+
+### Why separate threads?
+
+Previously, a single `messages` list was shared between modes. Switching the Agent Mode toggle could show RAG answers beside agent decision cards in the same thread, which was confusing in demos.
+
+Now each mode has its own thread store:
+
+- `standard_threads` + `active_standard_thread_id`
+- `agent_threads` + `active_agent_thread_id`
+
+### What is a thread?
+
+A thread is one conversation within a mode. It stores:
+
+- `thread_id`, `title`, `created_at`, `updated_at`
+- `messages` — user and assistant turns with optional `metadata`
+
+Thread titles are generated from the first user message (about 48 characters). Empty threads show **New chat**.
+
+### Navigation changes
+
+| Area | What changed |
+|------|----------------|
+| **Sidebar** | Clear mode radio, thread list, + New thread, Clear current thread, short knowledge-base counts |
+| **Main chat** | Example questions appear when the active thread is empty |
+| **Tabs** | Chat, Knowledge Base, Architecture, FAQs moved out of the sidebar |
+| **Architecture note** | Removed from sidebar; see Architecture tab |
+
+### How to use
+
+1. Choose **Standard RAG Chat** or **PolicyOps Agent** in the sidebar.
+2. Ask a question or click an example in the main chat area.
+3. Click **+ New thread** to start a fresh conversation in the current mode.
+4. Switch modes — the other mode's threads stay separate and accessible.
+5. Open **Knowledge Base**, **Architecture**, or **FAQs** tabs for reference content.
+
+### Run the app
+
+```bash
+streamlit run app/streamlit_app.py
+```
+
+### UI testing checklist
+
+1. Open the app.
+2. Create a Standard RAG Chat thread (default mode may be PolicyOps Agent — switch if needed).
+3. Ask a knowledge-base question.
+4. Switch to PolicyOps Agent.
+5. Confirm the standard thread does not appear in agent mode.
+6. Create an agent thread (+ New thread).
+7. Ask a policy scenario.
+8. Confirm decision card, citations, and trace appear.
+9. Switch back to Standard RAG Chat.
+10. Confirm standard chat history is preserved separately.
+11. Create a new thread in either mode.
+12. Confirm the old thread is still accessible in the sidebar list.
+13. Open the Architecture tab.
+14. Open the FAQs tab.
+
+## Phase 2.5: Answer Quality and UI Cleanup
+
+Phase 2.5 polishes the PolicyOps Agent answer experience without adding Phase 3 features.
+
+### Why this cleanup was needed
+
+During Streamlit testing, agent answers were often:
+
+- Too verbose and repetitive
+- Downgraded to **Needs more information** when a useful provisional decision was already possible
+- Hard to scan because citations and retrieved sources dominated the page
+
+### Blocking information vs open questions
+
+| Type | Meaning | Example |
+|------|---------|---------|
+| **Blocking missing info** | Prevents any useful decision | No policy chunks retrieved, gift value unknown |
+| **Open questions** | Useful follow-ups that do not block a provisional decision | Cash equivalent?, public official?, itemized receipt? |
+
+**Key rule:** secondary missing details should appear under **Open questions**, not automatically change the decision to **Needs more information**.
+
+### Decision calibration (priority)
+
+1. **Escalate** — public official, sensitive external data sharing, cross-border work, cash gifts
+2. **Not allowed** — clearly prohibited actions
+3. **Needs approval** — enough facts to know approval is required (e.g. gift ≥ INR 10,000, client meal thresholds)
+4. **Allowed** — facts and policy support the action
+5. **Needs more information** — only when truly blocked (missing essential facts or no retrieved evidence)
+
+### Answer format improvements
+
+The final answer is now concise and modular:
+
+- Short answer
+- Why this decision (max 3 bullets)
+- Required approvals
+- Open questions
+- Recommended next steps (max 5)
+- Compact citation section IDs
+- Clarifying question when relevant
+
+Default style: `ANSWER_STYLE = "concise"` in `agent/answer_formatter.py`.
+
+### UI improvements
+
+- Decision card uses color accents by decision type
+- Citation verification is compact with metrics and short excerpts
+- Retrieved sources and workflow trace are collapsed by default
+- Developer Debug View remains collapsed
+
+### Example before / after
+
+**Before**
+
+```text
+Decision: Needs more information
+Missing information:
+- whether the gift is cash or cash equivalent
+- whether a public official is involved
+```
+
+**After**
+
+```text
+Decision: Needs approval
+Required approvals:
+- Manager
+- Compliance
+Open questions:
+- whether the gift is cash or cash equivalent
+- whether a public official is involved
+```
+
+### How to test
+
+```bash
+source .venv/bin/activate
+python -m unittest tests.test_phase2_agent -v
+streamlit run app/streamlit_app.py
+```
+
+Try in **PolicyOps Agent** mode:
+
+- Can I accept an INR 12,000 gift from a vendor?
+- Can I reimburse a client dinner for INR 18,000 if two external guests attended and I paid with my own card?
+- Can I share customer data with an external vendor for analysis?
 
 ## How to Run Locally
 
