@@ -543,9 +543,12 @@ def parse_agent_answer(text: str) -> dict:
         "decision": "",
         "risk_level": "",
         "confidence": None,
+        "topic": "",
         "short_answer": "",
         "summary": "",
         "rationale": [],
+        "policy_basis": [],
+        "how_applies": [],
         "missing": [],
         "open_questions": [],
         "approvals": [],
@@ -565,6 +568,10 @@ def parse_agent_answer(text: str) -> dict:
 
         if line.startswith("Decision:"):
             parsed["decision"] = line.split(":", 1)[1].strip()
+            current = None
+            continue
+        if line.startswith("Topic:"):
+            parsed["topic"] = line.split(":", 1)[1].strip()
             current = None
             continue
         if line.startswith("Risk level:"):
@@ -588,6 +595,15 @@ def parse_agent_answer(text: str) -> dict:
             continue
         if line == "Why this decision:":
             current = "rationale"
+            continue
+        if line == "Policy basis:":
+            current = "policy_basis"
+            continue
+        if line == "How this applies to your case:":
+            current = "how_applies"
+            continue
+        if line == "How this applies to your question:":
+            current = "how_applies"
             continue
         if line in {"Missing information:", "Blocking information needed:"}:
             current = "missing"
@@ -617,6 +633,10 @@ def parse_agent_answer(text: str) -> dict:
             parsed["summary"] += (line + " ")
         elif current == "rationale" and line.startswith("- "):
             parsed["rationale"].append(line[2:].strip())
+        elif current == "policy_basis" and line.startswith("- "):
+            parsed["policy_basis"].append(line[2:].strip())
+        elif current == "how_applies" and line.startswith("- "):
+            parsed["how_applies"].append(line[2:].strip())
         elif current == "missing" and line.startswith("- "):
             parsed["missing"].append(line[2:].strip())
         elif current == "open_questions" and line.startswith("- "):
@@ -795,7 +815,24 @@ def render_final_answer_card(answer_text: str, agent_state: dict) -> None:
         rationale = parsed["rationale"] or agent_state.get("rationale_bullets", [])
         if rationale:
             st.markdown("**Why this decision**")
-            for item in rationale[:3]:
+            for item in rationale[:4]:
+                st.markdown(f"- {item}")
+
+        policy_basis = parsed["policy_basis"]
+        if not policy_basis and agent_state.get("policy_basis"):
+            for rule in agent_state.get("policy_basis", [])[:4]:
+                section_id = rule.get("section_id", "Policy")
+                summary = rule.get("rule_summary") or rule.get("raw_excerpt", "")
+                policy_basis.append(f"{section_id}: {summary}")
+        if policy_basis:
+            st.markdown("**Policy basis**")
+            for item in policy_basis:
+                st.markdown(f"- {item}")
+
+        how_applies = parsed["how_applies"]
+        if how_applies:
+            st.markdown("**How this applies to your case**")
+            for item in how_applies:
                 st.markdown(f"- {item}")
 
         approvals = parsed["approvals"] or agent_state.get("required_approvals", [])
@@ -982,12 +1019,45 @@ def render_citation_panels(agent_state: dict) -> None:
                 st.write(citation.get("full_text") or excerpt)
 
 
+def render_policy_basis_card(agent_state: dict) -> None:
+    """Render extracted policy basis rules."""
+    policy_basis = agent_state.get("policy_basis") or []
+    if not policy_basis:
+        return
+
+    with st.container(border=True):
+        st.markdown("### Policy basis")
+        for rule in policy_basis[:6]:
+            section_id = rule.get("section_id", "Policy")
+            title = rule.get("section_title", "")
+            summary = rule.get("rule_summary") or rule.get("raw_excerpt", "")
+            st.markdown(f"**{section_id}** · {title}")
+            st.caption(summary)
+
+
 def render_agent_extras(agent_state: dict, message_index: int) -> None:
     """Render agent decision, answer, citations, and collapsible diagnostics."""
     answer_text = agent_state.get("final_answer", "")
+    answer_type = agent_state.get("answer_type", "scenario_decision")
 
-    render_decision_metrics(agent_state)
-    render_final_answer_card(answer_text, agent_state)
+    if answer_type == "policy_explanation":
+        title = agent_state.get("explanation_title") or "Policy overview"
+        st.markdown(
+            f"""
+            <div class="po-decision-hero po-risk-low">
+                <div class="label">Policy explanation</div>
+                <div class="value">{title}</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        render_policy_basis_card(agent_state)
+        render_final_answer_card(answer_text, agent_state)
+    else:
+        render_decision_metrics(agent_state)
+        render_policy_basis_card(agent_state)
+        render_final_answer_card(answer_text, agent_state)
+
     render_citation_panels(agent_state)
     render_source_cards(agent_state.get("retrieved_chunks", []), message_index)
     render_trace_timeline(agent_state.get("trace", []))

@@ -27,7 +27,7 @@ flowchart TD
     langgraph --> evalRunner[EvaluationRunner]
 ```
 
-## Agent Graph (Phase 3)
+## Agent Graph (Phase 3.5)
 
 ```mermaid
 flowchart TD
@@ -35,29 +35,36 @@ flowchart TD
     initState --> intentNode[ClassifyIntent]
     intentNode --> parseNode[HybridParseScenario]
     parseNode --> memoryNode[MergeThreadMemory]
-    memoryNode --> retrieveNode[RetrievePolicy]
-    retrieveNode --> missingNode[CheckMissingInfo]
+    memoryNode --> answerTypeNode[ClassifyAnswerType]
+    answerTypeNode --> retrieveNode[RetrievePolicy]
+    retrieveNode --> extractRulesNode[ExtractPolicyRules]
+    extractRulesNode --> missingNode[CheckMissingInfo]
     missingNode --> routerNode{Route}
+    routerNode -->|explain| explainNode[BuildPolicyExplanation]
     routerNode -->|blocking| clarifyNode[ProvisionalClarify]
     routerNode -->|ready| decideNode[MakePolicyDecision]
     routerNode -->|highRisk| escalateNode[EscalationReview]
-    clarifyNode --> verifyNode[VerifyCitations]
+    explainNode --> verifyNode[VerifyCitations]
+    clarifyNode --> verifyNode
     decideNode --> verifyNode
     escalateNode --> verifyNode
     verifyNode --> clarifyQ[GenerateClarifyingQuestion]
     clarifyQ --> nextNode[GenerateNextSteps]
-    nextNode --> formatNode[FormatFinalAnswer]
+    nextNode --> formatNode[FormatFinalAnswerByType]
     formatNode --> saveNode[SaveThreadMemory]
     saveNode --> endNode[END]
 ```
+
+**Data flow:** Acme mock policies → `ingest_policies` → Chroma → retrieve → `extract_policy_rules` → decision/answer formatters.
 
 **Routing rules (`agent/routing.py`):**
 
 | Route | Condition |
 |-------|-----------|
+| `explain` | `answer_type == policy_explanation` |
 | `escalate` | Public official, cash gift, cross-border work, or sensitive external data sharing |
-| `clarify` | Blocking missing information (including no retrieved chunks) |
-| `decide` | Otherwise — open questions alone do not block |
+| `clarify` | Blocking missing information, or `insufficient_context` answer type |
+| `decide` | Scenario decisions and clarification follow-ups |
 
 ## State Schema
 
@@ -76,6 +83,9 @@ Key `AgentState` / `GraphState` fields:
 | `policy_decision` | Allowed / Not allowed / Needs approval / Needs more information / Escalate |
 | `verified_citations` | Citations from retrieved chunks only |
 | `thread_memory` | Slim snapshot for next turn |
+| `answer_type` | `policy_explanation`, `scenario_decision`, etc. |
+| `extracted_policy_rules` | Structured rules from retrieved chunks |
+| `policy_basis` | Rules selected for the current answer |
 | `trace` | Workflow step log (no chain-of-thought) |
 
 ## Decision Layer
@@ -97,7 +107,7 @@ Priority: Escalate → Not allowed → Needs approval → Allowed → Needs more
 
 | Asset | Role |
 |-------|------|
-| `evals/golden_policy_cases.json` | 18 golden scenarios |
+| `evals/golden_policy_cases.json` | 20 golden scenarios |
 | `evals/eval_metrics.py` | Transparent metric functions |
 | `evals/run_agent_evals.py` | CLI runner + `latest_eval_results.json` |
 | Streamlit **Evaluations** tab | Button-triggered dashboard |

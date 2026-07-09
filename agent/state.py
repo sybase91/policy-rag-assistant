@@ -40,6 +40,11 @@ class AgentState(TypedDict, total=False):
     router_path: str
     errors: list[str]
     thread_memory: dict
+    # Phase 3.5 fields
+    answer_type: str
+    extracted_policy_rules: list[dict]
+    policy_basis: list[dict]
+    explanation_title: str
 
 
 class GraphState(AgentState, total=False):
@@ -80,4 +85,8 @@ def create_initial_state(user_query: str) -> AgentState:
         "router_path": "",
         "errors": [],
         "thread_memory": {},
+        "answer_type": "scenario_decision",
+        "extracted_policy_rules": [],
+        "policy_basis": [],
+        "explanation_title": "",
     }

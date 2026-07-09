@@ -39,12 +39,13 @@ Each mode uses **separate chat threads** so histories never mix.
 Documents → Chunks → Embeddings → Vector Store → Retriever → Answer
 ```
 
-**Agent pipeline (Phase 3):**
+**Agent pipeline (Phase 3.5):**
 
 ```text
-User Scenario → Intent → Hybrid Parser → Memory Merge → Retrieval
-→ Missing Info Check → Router → Decision / Clarify / Escalate
-→ Citation Verification → Final Answer → Thread Memory
+User Scenario → Intent → Hybrid Parser → Memory Merge → Answer-Type Routing
+→ Retrieval → Policy Rule Extraction → Missing Info Check → Router
+→ Policy Explanation / Decision / Clarify / Escalate
+→ Citation Verification → Type-Specific Formatter → Thread Memory
 ```
 
 ```mermaid
@@ -92,6 +93,18 @@ python scripts/ingest_mock_policies.py --replace
 | **2** | Grounded decision engine, citation verify | Auditable structured decisions | `agent/decision_rules.py`, `agent/citation_verifier.py` |
 | **2.5** | Answer quality + UI cleanup | Useful decisions vs over-blocking | `agent/answer_formatter.py`, blocking vs open questions |
 | **3** | LangGraph, LLM parsing, memory, evals | Stateful enterprise-grade agent | `agent/langgraph_workflow.py`, `agent/memory.py`, `evals/` |
+| **3.5** | Corpus enrichment + grounded answer quality | Answer-type routing, rule extraction, policy basis in answers | `agent/answer_routing.py`, `agent/policy_rule_extractor.py`, `agent/answer_formatter.py` |
+
+### Phase 3.5 answer quality
+
+Phase 3.5b adds answer-type routing so informational questions (e.g. "What is the work from home policy?") use a **policy explanation** path instead of a decision card. Retrieved chunks are parsed into structured **policy rules** that feed decision rationale, policy basis sections, and expanded eval metrics.
+
+Answer types: `policy_explanation`, `scenario_decision`, `clarification_followup`, `escalation_guidance`, `insufficient_context`.
+
+```bash
+python -m unittest tests.test_phase35_agent -v
+python evals/run_agent_evals.py
+```
 
 ## 6. Key Technical Concepts
 

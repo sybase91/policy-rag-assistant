@@ -114,13 +114,25 @@ def _json_safe(value: Any, seen: set[int] | None = None) -> Any:
 def is_follow_up_turn(thread: dict) -> bool:
     """True when the prior agent turn left open questions or a clarifying question."""
     prev = get_previous_agent_state(thread)
-    if not prev:
+    return is_follow_up_from_state(prev)
+
+
+def is_follow_up_from_state(state: dict | None) -> bool:
+    """True when prior agent state indicates a follow-up turn."""
+    if not state:
         return False
-    if prev.get("clarifying_question"):
+    if state.get("clarifying_question"):
         return True
-    if prev.get("open_questions"):
+    if state.get("open_questions"):
         return True
-    return bool(prev.get("blocking_missing_info"))
+    return bool(state.get("blocking_missing_info"))
+
+
+def is_follow_up_agent_turn(state: AgentState) -> bool:
+    """True when the current graph turn continues an existing agent thread."""
+    if state.get("conversation_history"):
+        return True
+    return bool(state.get("previous_scenario_facts"))
 
 
 def merge_scenario_facts(previous: dict | None, new: dict) -> dict:
@@ -181,6 +193,9 @@ def slim_agent_state_snapshot(state: AgentState) -> dict:
         "clarifying_question": state.get("clarifying_question"),
         "required_approvals": state.get("required_approvals", []),
         "user_query": state.get("user_query"),
+        "answer_type": state.get("answer_type", "scenario_decision"),
+        "policy_basis": state.get("policy_basis", []),
+        "explanation_title": state.get("explanation_title", ""),
     }
 
 

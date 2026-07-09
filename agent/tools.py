@@ -244,10 +244,56 @@ def retrieve_policy_tool(user_query: str, top_k: int = 5) -> list[dict]:
     return normalized
 
 
+def filter_redundant_open_questions(
+    open_questions: list[str],
+    scenario_facts: dict,
+    answer_type: str = "scenario_decision",
+) -> list[str]:
+    """Remove open questions already answered in scenario facts."""
+    if answer_type == "policy_explanation":
+        return []
+
+    query_text = (scenario_facts.get("raw_query") or "").lower()
+    filtered: list[str] = []
+    for question in open_questions:
+        lowered = question.lower()
+        if "manager approval" in lowered and scenario_facts.get("approval_status") == "approved":
+            continue
+        if "cash" in lowered:
+            if scenario_facts.get("cash_gift") is True:
+                continue
+            if scenario_facts.get("cash_gift") is False and any(
+                phrase in query_text for phrase in ("not cash", "no cash", "not a cash")
+            ):
+                continue
+        if "public official" in lowered:
+            if scenario_facts.get("public_official_involved") is True:
+                continue
+            if scenario_facts.get("public_official_involved") is False and any(
+                phrase in query_text
+                for phrase in ("no public official", "not a public official", "no official")
+            ):
+                continue
+        if "vendor" in lowered and scenario_facts.get("vendor_or_client_involved"):
+            continue
+        if "duration" in lowered and scenario_facts.get("duration"):
+            continue
+        if "location" in lowered and scenario_facts.get("location"):
+            continue
+        if "receipt" in lowered:
+            docs = scenario_facts.get("documentation_provided", [])
+            if "receipt mentioned" in docs or "lost receipt" in docs:
+                continue
+        filtered.append(question)
+    return list(dict.fromkeys(filtered))
+
+
 def missing_info_tool(
     user_query: str,
     scenario_facts: dict,
     retrieved_chunks: list[dict],
+    *,
+    answer_type: str = "scenario_decision",
 ) -> dict:
     """Return blocking missing info and open questions separately."""
     text = user_query.lower()
@@ -312,7 +358,14 @@ def missing_info_tool(
             open_questions.append("data classification")
 
     blocking = list(dict.fromkeys(blocking))
-    open_questions = list(dict.fromkeys(open_questions))
+    open_questions = filter_redundant_open_questions(
+        list(dict.fromkeys(open_questions)),
+        scenario_facts,
+        answer_type=answer_type,
+    )
+    if answer_type == "policy_explanation":
+        blocking = [item for item in blocking if item != "relevant policy evidence" or not retrieved_chunks]
+        open_questions = []
     return {
         "blocking_missing_info": blocking,
         "open_questions": open_questions,

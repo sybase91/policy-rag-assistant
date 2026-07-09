@@ -3,15 +3,19 @@
 from __future__ import annotations
 
 from agent.answer_formatter import format_final_answer
+from agent.answer_routing import classify_answer_type
 from agent.citation_verifier import apply_citation_adjustments, verify_citations
 from agent.llm_parser import hybrid_parse_scenario
-from agent.memory import build_retrieval_query, merge_scenario_facts, slim_agent_state_snapshot
+from agent.memory import build_retrieval_query, is_follow_up_agent_turn, merge_scenario_facts, slim_agent_state_snapshot
+from agent.policy_explainer import build_policy_explanation
+from agent.policy_rule_extractor import extract_policy_rules
 from agent.state import AgentState
 from agent.decision_rules import make_policy_decision
 from agent.tools import (
     classify_intent_tool,
     generate_clarifying_question_tool,
     generate_next_steps_tool,
+    merge_follow_up_facts,
     missing_info_tool,
     parse_scenario_tool,
     retrieve_policy_tool,
@@ -68,6 +72,8 @@ def merge_thread_memory_node(state: AgentState) -> AgentState:
     try:
         previous = state.get("previous_scenario_facts", {})
         current = state.get("scenario_facts", {})
+        if is_follow_up_agent_turn(state):
+            current = merge_follow_up_facts(current, state["user_query"])
         merged = merge_scenario_facts(previous, current)
         state["merged_scenario_facts"] = merged
         state["scenario_facts"] = merged
@@ -81,6 +87,32 @@ def merge_thread_memory_node(state: AgentState) -> AgentState:
         )
     except Exception as exc:  # noqa: BLE001
         add_trace_step(state, "merge_thread_memory", "failed", f"Memory merge failed: {exc}")
+    return state
+
+
+def classify_answer_type_node(state: AgentState) -> AgentState:
+    """Classify how the final answer should be structured."""
+    add_trace_step(state, "classify_answer_type", "started", "Classifying answer type.")
+    try:
+        facts = state.get("merged_scenario_facts") or state.get("scenario_facts", {})
+        answer_type = classify_answer_type(
+            state["user_query"],
+            state.get("intent", "unknown"),
+            facts,
+            is_follow_up=is_follow_up_agent_turn(state),
+            had_open_questions=is_follow_up_agent_turn(state),
+        )
+        state["answer_type"] = answer_type
+        add_trace_step(
+            state,
+            "classify_answer_type",
+            "completed",
+            f"Answer type: {answer_type}.",
+            {"answer_type": answer_type},
+        )
+    except Exception as exc:  # noqa: BLE001
+        state["answer_type"] = "scenario_decision"
+        add_trace_step(state, "classify_answer_type", "failed", f"Answer type classification failed: {exc}")
     return state
 
 
@@ -208,6 +240,56 @@ def retrieve_policy_node(state: AgentState) -> AgentState:
     return state
 
 
+def extract_policy_rules_node(state: AgentState) -> AgentState:
+    """Extract structured policy rules from retrieved chunks."""
+    add_trace_step(state, "extract_policy_rules", "started", "Extracting policy rules from chunks.")
+    try:
+        rules = extract_policy_rules(state.get("retrieved_chunks", []))
+        state["extracted_policy_rules"] = rules
+        add_trace_step(
+            state,
+            "extract_policy_rules",
+            "completed",
+            f"Extracted {len(rules)} policy rule(s).",
+            {"rule_count": len(rules)},
+        )
+    except Exception as exc:  # noqa: BLE001
+        state["extracted_policy_rules"] = []
+        add_trace_step(state, "extract_policy_rules", "failed", f"Rule extraction failed: {exc}")
+    return state
+
+
+def build_policy_explanation_node(state: AgentState) -> AgentState:
+    """Build policy explanation fields without a scenario decision card."""
+    add_trace_step(state, "build_policy_explanation", "started", "Building policy explanation.")
+    try:
+        facts = state.get("merged_scenario_facts") or state.get("scenario_facts", {})
+        explanation = build_policy_explanation(
+            facts,
+            state.get("extracted_policy_rules", []),
+            state.get("retrieved_chunks", []),
+        )
+        state["router_path"] = "explain"
+        state["policy_decision"] = explanation.get("policy_decision", "")
+        state["risk_level"] = explanation["risk_level"]
+        state["confidence"] = explanation["confidence"]
+        state["rationale_bullets"] = explanation.get("rationale_bullets", [])
+        state["required_approvals"] = explanation.get("required_approvals", [])
+        state["policy_basis"] = explanation.get("policy_basis", [])
+        state["decision_factors"] = explanation.get("decision_factors", {})
+        state["explanation_title"] = explanation.get("explanation_title", "")
+        add_trace_step(
+            state,
+            "build_policy_explanation",
+            "completed",
+            "Policy explanation built.",
+            {"policy_basis_count": len(state["policy_basis"])},
+        )
+    except Exception as exc:  # noqa: BLE001
+        add_trace_step(state, "build_policy_explanation", "failed", f"Explanation build failed: {exc}")
+    return state
+
+
 def check_missing_info_node(state: AgentState) -> AgentState:
     """Identify missing information needed for a confident decision."""
     add_trace_step(state, "check_missing_info", "started", "Checking for missing scenario details.")
@@ -216,6 +298,7 @@ def check_missing_info_node(state: AgentState) -> AgentState:
             state["user_query"],
             state.get("merged_scenario_facts") or state["scenario_facts"],
             state["retrieved_chunks"],
+            answer_type=state.get("answer_type", "scenario_decision"),
         )
         state["blocking_missing_info"] = classified["blocking_missing_info"]
         state["open_questions"] = classified["open_questions"]
@@ -247,6 +330,7 @@ def make_policy_decision_node(state: AgentState) -> AgentState:
             state["retrieved_chunks"],
             state["blocking_missing_info"],
             state.get("open_questions", []),
+            state.get("extracted_policy_rules", []),
         )
         state["router_path"] = "decide"
         state["policy_decision"] = decision_result["decision"]
@@ -254,6 +338,7 @@ def make_policy_decision_node(state: AgentState) -> AgentState:
         state["confidence"] = decision_result["confidence"]
         state["rationale_bullets"] = decision_result.get("rationale_bullets", [])
         state["required_approvals"] = decision_result.get("required_approvals", [])
+        state["policy_basis"] = decision_result.get("policy_basis", [])
         state["decision_factors"] = decision_result.get("decision_factors", {})
         state["open_questions"] = decision_result.get(
             "open_questions", state.get("open_questions", [])

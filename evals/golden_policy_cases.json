@@ -195,6 +195,38 @@
     "expected_required_approvals": [],
     "must_cite_sections": ["GH-002"],
     "expected_open_questions": ["gift value"],
+    "expected_answer_type": "scenario_decision",
+    "quality_checks": ["GH-002"],
+    "facts_that_should_not_be_asked_again": [],
     "notes": "Low-value gift ambiguity."
+  },
+  {
+    "id": "explain_001",
+    "query": "What is the work from home policy?",
+    "expected_policy_area": "remote_work",
+    "expected_decision": ["", "Allowed", "Needs more information"],
+    "expected_risk_level": ["Low", "Medium"],
+    "expected_required_approvals": [],
+    "must_cite_sections": ["RW-001", "RW-003", "RW-030"],
+    "expected_open_questions": [],
+    "expected_answer_type": "policy_explanation",
+    "expected_sections": ["RW-001", "RW-003", "RW-030"],
+    "quality_checks": ["remote", "manager"],
+    "facts_that_should_not_be_asked_again": [],
+    "notes": "Policy explanation for WFH."
+  },
+  {
+    "id": "gift_006",
+    "query": "Can I accept an INR 5,000 gift from a vendor?",
+    "expected_policy_area": "gifts_hospitality",
+    "expected_decision": ["Allowed", "Needs approval", "Needs more information"],
+    "expected_risk_level": ["Low", "Medium"],
+    "expected_required_approvals": [],
+    "must_cite_sections": ["GH-003"],
+    "expected_open_questions": ["cash", "public official"],
+    "expected_answer_type": "scenario_decision",
+    "quality_checks": ["GH-003", "5,000", "report"],
+    "facts_that_should_not_be_asked_again": ["vendor"],
+    "notes": "Mid-tier vendor gift reporting case."
   }
 ]

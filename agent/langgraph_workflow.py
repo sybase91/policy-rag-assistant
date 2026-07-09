@@ -1,13 +1,16 @@
-"""LangGraph workflow for PolicyOps Agent Phase 3."""
+"""LangGraph workflow for PolicyOps Agent Phase 3.5."""
 
 from __future__ import annotations
 
 from langgraph.graph import END, START, StateGraph
 
 from agent.nodes import (
+    build_policy_explanation_node,
     check_missing_info_node,
+    classify_answer_type_node,
     classify_intent_node,
     escalation_review_node,
+    extract_policy_rules_node,
     generate_clarifying_question_node,
     generate_final_answer_node,
     generate_next_steps_node,
@@ -31,9 +34,12 @@ def _build_graph():
     workflow.add_node("classify_intent", classify_intent_node)
     workflow.add_node("hybrid_parse_scenario", hybrid_parse_scenario_node)
     workflow.add_node("merge_thread_memory", merge_thread_memory_node)
+    workflow.add_node("classify_answer_type", classify_answer_type_node)
     workflow.add_node("retrieve_policy", retrieve_policy_node)
+    workflow.add_node("extract_policy_rules", extract_policy_rules_node)
     workflow.add_node("check_missing_info", check_missing_info_node)
     workflow.add_node("make_policy_decision", make_policy_decision_node)
+    workflow.add_node("build_policy_explanation", build_policy_explanation_node)
     workflow.add_node("provisional_clarify", provisional_clarify_node)
     workflow.add_node("escalation_review", escalation_review_node)
     workflow.add_node("generate_clarifying_question", generate_clarifying_question_node)
@@ -46,13 +52,16 @@ def _build_graph():
     workflow.add_edge("initialize_state", "classify_intent")
     workflow.add_edge("classify_intent", "hybrid_parse_scenario")
     workflow.add_edge("hybrid_parse_scenario", "merge_thread_memory")
-    workflow.add_edge("merge_thread_memory", "retrieve_policy")
-    workflow.add_edge("retrieve_policy", "check_missing_info")
+    workflow.add_edge("merge_thread_memory", "classify_answer_type")
+    workflow.add_edge("classify_answer_type", "retrieve_policy")
+    workflow.add_edge("retrieve_policy", "extract_policy_rules")
+    workflow.add_edge("extract_policy_rules", "check_missing_info")
 
     workflow.add_conditional_edges(
         "check_missing_info",
         route_after_missing_info,
         {
+            "explain": "build_policy_explanation",
             "decide": "make_policy_decision",
             "clarify": "provisional_clarify",
             "escalate": "escalation_review",
@@ -60,6 +69,7 @@ def _build_graph():
     )
 
     workflow.add_edge("make_policy_decision", "verify_citations")
+    workflow.add_edge("build_policy_explanation", "verify_citations")
     workflow.add_edge("provisional_clarify", "verify_citations")
     workflow.add_edge("escalation_review", "verify_citations")
     workflow.add_edge("verify_citations", "generate_clarifying_question")
