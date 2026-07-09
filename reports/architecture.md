@@ -122,7 +122,7 @@ PDFs → ingest/chunk → embed → Chroma → retrieve → generate → Streaml
 
 | Phase | Focus |
 |-------|--------|
-| 0 | Mock Acme corpus + additive ingest |
+| 0 | Mock Acme corpus v2.0 (165 sections) + `ingest_mock_policies.py --replace` |
 | 1 | Linear agent foundation + trace |
 | 2 | Grounded decision engine + citation verify |
 | 2.5 | Answer quality calibration + compact UI |

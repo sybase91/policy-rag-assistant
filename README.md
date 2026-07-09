@@ -66,7 +66,28 @@ flowchart LR
 
 | Phase | What changed | Why it mattered | Key files |
 |-------|--------------|-----------------|-----------|
-| **0** | Synthetic Acme Corp policies + ingest | Realistic workplace corpus | `data/policies/mock/`, `scripts/ingest_mock_policies.py` |
+| **0** | Synthetic Acme Corp policies + ingest | Enterprise-style mock corpus (v2.0) | `data/policies/mock/`, `scripts/ingest_mock_policies.py` |
+
+## Synthetic Acme Corp Policy Corpus
+
+The files in `data/policies/mock/` are **fictional** policies for Acme Corp (not a real company). They are designed to simulate the complexity of a large global enterprise for RAG retrieval, policy-rule extraction, and agent evaluation.
+
+They are inspired by public guidance and common enterprise practices (see `data/policies/source_references.md`) but are **original synthetic text** — not legal, HR, finance, tax, or compliance advice.
+
+| Policy | What it covers |
+|--------|----------------|
+| Approval Matrix | Cross-functional approval routing (AM-001–AM-020) |
+| Gifts and Hospitality | Thresholds, cash prohibitions, public officials, procurement blackout (GH-001–GH-025) |
+| Travel and Expense | Travel, client meals, lodging, alcohol, upgrades (TE-001–TE-030) |
+| Reimbursement | Claims, receipts, missing receipts, late submissions (RE-001–RE-025) |
+| Remote Work | Short-term, extended, medical, cross-border remote work (RW-001–RW-030) |
+| Data Access | Classification, least privilege, external sharing, AI tools (DA-001–DA-035) |
+
+After editing policy files, re-ingest with:
+
+```bash
+python scripts/ingest_mock_policies.py --replace
+```
 | **1** | Agent foundation, trace, Streamlit Agent Mode | Structured workflow over retrieval | `agent/state.py`, `agent/nodes.py`, `agent/graph.py` |
 | **2** | Grounded decision engine, citation verify | Auditable structured decisions | `agent/decision_rules.py`, `agent/citation_verifier.py` |
 | **2.5** | Answer quality + UI cleanup | Useful decisions vs over-blocking | `agent/answer_formatter.py`, blocking vs open questions |
@@ -110,7 +131,7 @@ cp .env.example .env
 # Add your OPENAI_API_KEY to .env
 
 python -m src.embed --rebuild
-python scripts/ingest_mock_policies.py
+python scripts/ingest_mock_policies.py --replace
 streamlit run app/streamlit_app.py
 ```
 

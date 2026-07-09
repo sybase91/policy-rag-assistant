@@ -10,7 +10,7 @@
     "retrieval_hit_rate": 0.944,
     "final_answer_non_empty": 1.0,
     "escalation_precision": 1.0,
-    "average_confidence": 0.617,
+    "average_confidence": 0.621,
     "pass_rate": 0.889
   },
   "results": [
@@ -108,7 +108,7 @@
           "Compliance"
         ],
         "must_cite_sections": [
-          "GH-002"
+          "GH-004"
         ]
       },
       "actual": {
@@ -147,23 +147,23 @@
         "verified_citations": [
           {
             "source": "acme_policy.md",
-            "section": "GH-002 Example",
-            "section_id": "GH-002",
+            "section": "GH-004 Example",
+            "section_id": "GH-004",
             "section_title": "Example",
-            "supporting_text_excerpt": "Policy text for GH-002.",
-            "full_text": "Policy text for GH-002."
+            "supporting_text_excerpt": "Policy text for GH-004.",
+            "full_text": "Policy text for GH-004."
           }
         ],
         "retrieved_chunks": [
           {
-            "text": "Policy text for GH-002.",
+            "text": "Policy text for GH-004.",
             "source": "acme_policy.md",
-            "section": "GH-002 Example",
-            "section_id": "GH-002",
+            "section": "GH-004 Example",
+            "section_id": "GH-004",
             "score": 0.84
           }
         ],
-        "final_answer": "Decision: Escalate\n\nRisk level: High\nConfidence: 70%\n\nShort answer:\nThis scenario has elevated risk. Escalate to the appropriate governance team before taking any action.\n\nWhy this decision:\n- This scenario has elevated governance or compliance risk.\n- Cash or cash-equivalent gifts are high-risk and require escalation.\n\nRequired approvals:\n- Compliance\n\nOpen questions:\n- whether a public official is involved\n\nRecommended next steps:\n1. Do not proceed until the required approvals are confirmed.\n2. Request Compliance approval if not already obtained.\n3. Provide gift value before submitting.\n4. Confirm whether a public official is involved.\n5. Escalate this request to the appropriate governance team.\n\nCitations:\n- GH-002 Example\n\nClarifying question:\nIs the gift cash or cash equivalent, and is any public official involved?\n\nDisclaimer:\nDemo assistant using synthetic Acme Corp policies. Confirm real decisions with the relevant internal team."
+        "final_answer": "Decision: Escalate\n\nRisk level: High\nConfidence: 70%\n\nShort answer:\nThis scenario has elevated risk. Escalate to the appropriate governance team before taking any action.\n\nWhy this decision:\n- This scenario has elevated governance or compliance risk.\n- Cash or cash-equivalent gifts are high-risk and require escalation.\n\nRequired approvals:\n- Compliance\n\nOpen questions:\n- whether a public official is involved\n\nRecommended next steps:\n1. Do not proceed until the required approvals are confirmed.\n2. Request Compliance approval if not already obtained.\n3. Provide gift value before submitting.\n4. Confirm whether a public official is involved.\n5. Escalate this request to the appropriate governance team.\n\nCitations:\n- GH-004 Example\n\nClarifying question:\nIs the gift cash or cash equivalent, and is any public official involved?\n\nDisclaimer:\nDemo assistant using synthetic Acme Corp policies. Confirm real decisions with the relevant internal team."
       }
     },
     {
@@ -273,7 +273,7 @@
         ],
         "required_approvals": [],
         "must_cite_sections": [
-          "RE-005"
+          "RE-004"
         ]
       },
       "actual": {
@@ -310,23 +310,23 @@
         "verified_citations": [
           {
             "source": "acme_policy.md",
-            "section": "RE-005 Example",
-            "section_id": "RE-005",
+            "section": "RE-004 Example",
+            "section_id": "RE-004",
             "section_title": "Example",
-            "supporting_text_excerpt": "Policy text for RE-005.",
-            "full_text": "Policy text for RE-005."
+            "supporting_text_excerpt": "Policy text for RE-004.",
+            "full_text": "Policy text for RE-004."
           }
         ],
         "retrieved_chunks": [
           {
-            "text": "Policy text for RE-005.",
+            "text": "Policy text for RE-004.",
             "source": "acme_policy.md",
-            "section": "RE-005 Example",
-            "section_id": "RE-005",
+            "section": "RE-004 Example",
+            "section_id": "RE-004",
             "score": 0.84
           }
         ],
-        "final_answer": "Decision: Needs more information\n\nRisk level: Medium\nConfidence: 0%\n\nShort answer:\nA provisional decision cannot be made yet because essential facts or policy evidence are still missing.\n\nWhy this decision:\n- Essential facts or policy evidence are still missing for a confident decision.\n\nOpen questions:\n- business purpose\n- approval status\n\nRecommended next steps:\n1. Provide amount before submitting.\n2. Confirm business purpose.\n3. Confirm approval status.\n4. Review the cited Acme Corp policy sections before taking action.\n\nCitations:\n- RE-005 Example\n\nClarifying question:\nWas alcohol included in the bill, and do you already have manager approval?\n\nDisclaimer:\nDemo assistant using synthetic Acme Corp policies. Confirm real decisions with the relevant internal team."
+        "final_answer": "Decision: Needs more information\n\nRisk level: Medium\nConfidence: 0%\n\nShort answer:\nA provisional decision cannot be made yet because essential facts or policy evidence are still missing.\n\nWhy this decision:\n- Essential facts or policy evidence are still missing for a confident decision.\n\nOpen questions:\n- business purpose\n- approval status\n\nRecommended next steps:\n1. Provide amount before submitting.\n2. Confirm business purpose.\n3. Confirm approval status.\n4. Review the cited Acme Corp policy sections before taking action.\n\nCitations:\n- RE-004 Example\n\nClarifying question:\nWas alcohol included in the bill, and do you already have manager approval?\n\nDisclaimer:\nDemo assistant using synthetic Acme Corp policies. Confirm real decisions with the relevant internal team."
       }
     },
     {
@@ -344,7 +344,8 @@
           "HR"
         ],
         "must_cite_sections": [
-          "RW-003"
+          "RW-003",
+          "RW-004"
         ]
       },
       "actual": {
@@ -359,7 +360,7 @@
           "manager approval",
           "HR approval for medical exception"
         ],
-        "confidence": 0.6
+        "confidence": 0.66
       },
       "checks": {
         "decision_accuracy": true,
@@ -376,7 +377,7 @@
       "state": {
         "policy_decision": "Needs approval",
         "risk_level": "Medium",
-        "confidence": 0.6,
+        "confidence": 0.66,
         "required_approvals": [
           "Manager",
           "HR"
@@ -394,6 +395,14 @@
             "section_title": "Example",
             "supporting_text_excerpt": "Policy text for RW-003.",
             "full_text": "Policy text for RW-003."
+          },
+          {
+            "source": "acme_policy.md",
+            "section": "RW-004 Example",
+            "section_id": "RW-004",
+            "section_title": "Example",
+            "supporting_text_excerpt": "Policy text for RW-004.",
+            "full_text": "Policy text for RW-004."
           }
         ],
         "retrieved_chunks": [
@@ -403,9 +412,16 @@
             "section": "RW-003 Example",
             "section_id": "RW-003",
             "score": 0.84
+          },
+          {
+            "text": "Policy text for RW-004.",
+            "source": "acme_policy.md",
+            "section": "RW-004 Example",
+            "section_id": "RW-004",
+            "score": 0.84
           }
         ],
-        "final_answer": "Decision: Needs approval\n\nRisk level: Medium\nConfidence: 60%\n\nShort answer:\nYou can likely proceed only after the required approvals are in place. The policy evidence suggests approval is required, not an automatic rejection.\n\nWhy this decision:\n- Extended or exception-based remote work requires documented approval.\n- Medical-related remote work should be reviewed with HR.\n- Remote work beyond a short period requires formal approval.\n\nRequired approvals:\n- Manager\n- HR\n\nOpen questions:\n- work location\n- manager approval\n- HR approval for medical exception\n\nRecommended next steps:\n1. Do not proceed until the required approvals are confirmed.\n2. Request Manager approval if not already obtained.\n3. Request HR approval if not already obtained.\n4. Confirm work location.\n5. Confirm manager approval.\n\nCitations:\n- RW-003 Example\n\nClarifying question:\nHow long do you need to work remotely, and do you already have manager or HR approval?\n\nDisclaimer:\nDemo assistant using synthetic Acme Corp policies. Confirm real decisions with the relevant internal team."
+        "final_answer": "Decision: Needs approval\n\nRisk level: Medium\nConfidence: 66%\n\nShort answer:\nYou can likely proceed only after the required approvals are in place. The policy evidence suggests approval is required, not an automatic rejection.\n\nWhy this decision:\n- Extended or exception-based remote work requires documented approval.\n- Medical-related remote work should be reviewed with HR.\n- Remote work beyond a short period requires formal approval.\n\nRequired approvals:\n- Manager\n- HR\n\nOpen questions:\n- work location\n- manager approval\n- HR approval for medical exception\n\nRecommended next steps:\n1. Do not proceed until the required approvals are confirmed.\n2. Request Manager approval if not already obtained.\n3. Request HR approval if not already obtained.\n4. Confirm work location.\n5. Confirm manager approval.\n\nCitations:\n- RW-003 Example\n- RW-004 Example\n\nClarifying question:\nHow long do you need to work remotely, and do you already have manager or HR approval?\n\nDisclaimer:\nDemo assistant using synthetic Acme Corp policies. Confirm real decisions with the relevant internal team."
       }
     },
     {
@@ -423,7 +439,7 @@
           "Legal"
         ],
         "must_cite_sections": [
-          "RW-004"
+          "RW-005"
         ]
       },
       "actual": {
@@ -470,23 +486,23 @@
         "verified_citations": [
           {
             "source": "acme_policy.md",
-            "section": "RW-004 Example",
-            "section_id": "RW-004",
+            "section": "RW-005 Example",
+            "section_id": "RW-005",
             "section_title": "Example",
-            "supporting_text_excerpt": "Policy text for RW-004.",
-            "full_text": "Policy text for RW-004."
+            "supporting_text_excerpt": "Policy text for RW-005.",
+            "full_text": "Policy text for RW-005."
           }
         ],
         "retrieved_chunks": [
           {
-            "text": "Policy text for RW-004.",
+            "text": "Policy text for RW-005.",
             "source": "acme_policy.md",
-            "section": "RW-004 Example",
-            "section_id": "RW-004",
+            "section": "RW-005 Example",
+            "section_id": "RW-005",
             "score": 0.84
           }
         ],
-        "final_answer": "Decision: Escalate\n\nRisk level: High\nConfidence: 70%\n\nShort answer:\nThis scenario has elevated risk. Escalate to the appropriate governance team before taking any action.\n\nWhy this decision:\n- This scenario has elevated governance or compliance risk.\n- Cross-border work requires HR and Legal review.\n\nRequired approvals:\n- Compliance\n- HR\n- Legal\n\nOpen questions:\n- work location\n- manager approval\n- cross-border approval details\n\nRecommended next steps:\n1. Do not proceed until the required approvals are confirmed.\n2. Request Compliance approval if not already obtained.\n3. Request HR approval if not already obtained.\n4. Request Legal approval if not already obtained.\n5. Confirm work location.\n\nCitations:\n- RW-004 Example\n\nClarifying question:\nHow long do you need to work remotely, and do you already have manager or HR approval?\n\nDisclaimer:\nDemo assistant using synthetic Acme Corp policies. Confirm real decisions with the relevant internal team."
+        "final_answer": "Decision: Escalate\n\nRisk level: High\nConfidence: 70%\n\nShort answer:\nThis scenario has elevated risk. Escalate to the appropriate governance team before taking any action.\n\nWhy this decision:\n- This scenario has elevated governance or compliance risk.\n- Cross-border work requires HR and Legal review.\n\nRequired approvals:\n- Compliance\n- HR\n- Legal\n\nOpen questions:\n- work location\n- manager approval\n- cross-border approval details\n\nRecommended next steps:\n1. Do not proceed until the required approvals are confirmed.\n2. Request Compliance approval if not already obtained.\n3. Request HR approval if not already obtained.\n4. Request Legal approval if not already obtained.\n5. Confirm work location.\n\nCitations:\n- RW-005 Example\n\nClarifying question:\nHow long do you need to work remotely, and do you already have manager or HR approval?\n\nDisclaimer:\nDemo assistant using synthetic Acme Corp policies. Confirm real decisions with the relevant internal team."
       }
     },
     {
@@ -584,7 +600,7 @@
           "Information Security"
         ],
         "must_cite_sections": [
-          "DA-005"
+          "DA-004"
         ]
       },
       "actual": {
@@ -623,23 +639,23 @@
         "verified_citations": [
           {
             "source": "acme_policy.md",
-            "section": "DA-005 Example",
-            "section_id": "DA-005",
+            "section": "DA-004 Example",
+            "section_id": "DA-004",
             "section_title": "Example",
-            "supporting_text_excerpt": "Policy text for DA-005.",
-            "full_text": "Policy text for DA-005."
+            "supporting_text_excerpt": "Policy text for DA-004.",
+            "full_text": "Policy text for DA-004."
           }
         ],
         "retrieved_chunks": [
           {
-            "text": "Policy text for DA-005.",
+            "text": "Policy text for DA-004.",
             "source": "acme_policy.md",
-            "section": "DA-005 Example",
-            "section_id": "DA-005",
+            "section": "DA-004 Example",
+            "section_id": "DA-004",
             "score": 0.84
           }
         ],
-        "final_answer": "Decision: Needs approval\n\nRisk level: High\nConfidence: 72%\n\nShort answer:\nYou can likely proceed only after the required approvals are in place. The policy evidence suggests approval is required, not an automatic rejection.\n\nWhy this decision:\n- Sharing company data externally requires documented need-to-know and approval.\n- Sensitive data types increase governance and security risk.\n\nRequired approvals:\n- Information Security\n\nOpen questions:\n- data classification\n\nRecommended next steps:\n1. Do not proceed until the required approvals are confirmed.\n2. Request Information Security approval if not already obtained.\n3. Confirm data classification.\n4. Review the cited Acme Corp policy sections before taking action.\n\nCitations:\n- DA-005 Example\n\nClarifying question:\nWhat type of customer data will be shared, and has Security or Legal approved the vendor?\n\nDisclaimer:\nDemo assistant using synthetic Acme Corp policies. Confirm real decisions with the relevant internal team."
+        "final_answer": "Decision: Needs approval\n\nRisk level: High\nConfidence: 72%\n\nShort answer:\nYou can likely proceed only after the required approvals are in place. The policy evidence suggests approval is required, not an automatic rejection.\n\nWhy this decision:\n- Sharing company data externally requires documented need-to-know and approval.\n- Sensitive data types increase governance and security risk.\n\nRequired approvals:\n- Information Security\n\nOpen questions:\n- data classification\n\nRecommended next steps:\n1. Do not proceed until the required approvals are confirmed.\n2. Request Information Security approval if not already obtained.\n3. Confirm data classification.\n4. Review the cited Acme Corp policy sections before taking action.\n\nCitations:\n- DA-004 Example\n\nClarifying question:\nWhat type of customer data will be shared, and has Security or Legal approved the vendor?\n\nDisclaimer:\nDemo assistant using synthetic Acme Corp policies. Confirm real decisions with the relevant internal team."
       }
     },
     {
@@ -656,7 +672,7 @@
           "Manager"
         ],
         "must_cite_sections": [
-          "TE-006"
+          "TE-011"
         ]
       },
       "actual": {
@@ -691,23 +707,23 @@
         "verified_citations": [
           {
             "source": "acme_policy.md",
-            "section": "TE-006 Example",
-            "section_id": "TE-006",
+            "section": "TE-011 Example",
+            "section_id": "TE-011",
             "section_title": "Example",
-            "supporting_text_excerpt": "Policy text for TE-006.",
-            "full_text": "Policy text for TE-006."
+            "supporting_text_excerpt": "Policy text for TE-011.",
+            "full_text": "Policy text for TE-011."
           }
         ],
         "retrieved_chunks": [
           {
-            "text": "Policy text for TE-006.",
+            "text": "Policy text for TE-011.",
             "source": "acme_policy.md",
-            "section": "TE-006 Example",
-            "section_id": "TE-006",
+            "section": "TE-011 Example",
+            "section_id": "TE-011",
             "score": 0.84
           }
         ],
-        "final_answer": "Decision: Needs approval\n\nRisk level: Medium\nConfidence: 75%\n\nShort answer:\nYou can likely proceed only after the required approvals are in place. The policy evidence suggests approval is required, not an automatic rejection.\n\nWhy this decision:\n- Travel-related requests must follow Acme Corp travel and expense policy.\n- Hotel upgrades are generally not reimbursable without prior approval.\n\nRequired approvals:\n- Manager\n\nRecommended next steps:\n1. Do not proceed until the required approvals are confirmed.\n2. Request Manager approval if not already obtained.\n3. Review the cited Acme Corp policy sections before taking action.\n\nCitations:\n- TE-006 Example\n\nDisclaimer:\nDemo assistant using synthetic Acme Corp policies. Confirm real decisions with the relevant internal team."
+        "final_answer": "Decision: Needs approval\n\nRisk level: Medium\nConfidence: 75%\n\nShort answer:\nYou can likely proceed only after the required approvals are in place. The policy evidence suggests approval is required, not an automatic rejection.\n\nWhy this decision:\n- Travel-related requests must follow Acme Corp travel and expense policy.\n- Hotel upgrades are generally not reimbursable without prior approval.\n\nRequired approvals:\n- Manager\n\nRecommended next steps:\n1. Do not proceed until the required approvals are confirmed.\n2. Request Manager approval if not already obtained.\n3. Review the cited Acme Corp policy sections before taking action.\n\nCitations:\n- TE-011 Example\n\nDisclaimer:\nDemo assistant using synthetic Acme Corp policies. Confirm real decisions with the relevant internal team."
       }
     },
     {
@@ -794,7 +810,7 @@
           "Compliance"
         ],
         "must_cite_sections": [
-          "GH-009"
+          "GH-007"
         ]
       },
       "actual": {
@@ -837,23 +853,23 @@
         "verified_citations": [
           {
             "source": "acme_policy.md",
-            "section": "GH-009 Example",
-            "section_id": "GH-009",
+            "section": "GH-007 Example",
+            "section_id": "GH-007",
             "section_title": "Example",
-            "supporting_text_excerpt": "Policy text for GH-009.",
-            "full_text": "Policy text for GH-009."
+            "supporting_text_excerpt": "Policy text for GH-007.",
+            "full_text": "Policy text for GH-007."
           }
         ],
         "retrieved_chunks": [
           {
-            "text": "Policy text for GH-009.",
+            "text": "Policy text for GH-007.",
             "source": "acme_policy.md",
-            "section": "GH-009 Example",
-            "section_id": "GH-009",
+            "section": "GH-007 Example",
+            "section_id": "GH-007",
             "score": 0.84
           }
         ],
-        "final_answer": "Decision: Escalate\n\nRisk level: High\nConfidence: 70%\n\nShort answer:\nThis scenario has elevated risk. Escalate to the appropriate governance team before taking any action.\n\nWhy this decision:\n- This scenario has elevated governance or compliance risk.\n- Public official involvement requires Legal review.\n\nRequired approvals:\n- Compliance\n- Legal\n\nOpen questions:\n- whether the gift is cash or cash equivalent\n- whether vendor or client is involved\n\nRecommended next steps:\n1. Do not proceed until the required approvals are confirmed.\n2. Request Compliance approval if not already obtained.\n3. Request Legal approval if not already obtained.\n4. Confirm whether the gift is cash or cash equivalent.\n5. Confirm whether vendor or client is involved.\n\nCitations:\n- GH-009 Example\n\nClarifying question:\nIs the gift cash or cash equivalent, and is any public official involved?\n\nDisclaimer:\nDemo assistant using synthetic Acme Corp policies. Confirm real decisions with the relevant internal team."
+        "final_answer": "Decision: Escalate\n\nRisk level: High\nConfidence: 70%\n\nShort answer:\nThis scenario has elevated risk. Escalate to the appropriate governance team before taking any action.\n\nWhy this decision:\n- This scenario has elevated governance or compliance risk.\n- Public official involvement requires Legal review.\n\nRequired approvals:\n- Compliance\n- Legal\n\nOpen questions:\n- whether the gift is cash or cash equivalent\n- whether vendor or client is involved\n\nRecommended next steps:\n1. Do not proceed until the required approvals are confirmed.\n2. Request Compliance approval if not already obtained.\n3. Request Legal approval if not already obtained.\n4. Confirm whether the gift is cash or cash equivalent.\n5. Confirm whether vendor or client is involved.\n\nCitations:\n- GH-007 Example\n\nClarifying question:\nIs the gift cash or cash equivalent, and is any public official involved?\n\nDisclaimer:\nDemo assistant using synthetic Acme Corp policies. Confirm real decisions with the relevant internal team."
       }
     },
     {

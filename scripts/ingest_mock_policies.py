@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
-"""Add Acme Corp mock policies to the existing Chroma vector index.
+"""Add or replace Acme Corp mock policies in the Chroma vector index.
 
-This script is additive. It does not rebuild or delete the NIST PDF index.
+By default this script is additive: it only inserts chunks whose chunk_id is new.
+Use --replace to delete existing acme_policy chunks before re-ingesting updated
+policy text. This does not rebuild or delete the NIST PDF index.
+
 Run python -m src.embed --rebuild first if no Chroma index exists yet.
 """
 
 from __future__ import annotations
 
+import argparse
 import sys
 from pathlib import Path
 
@@ -30,8 +34,34 @@ def _existing_chunk_ids(vectorstore) -> set[str]:
         return set()
 
 
+def _delete_acme_policy_chunks(vectorstore) -> int:
+    """Delete all chunks tagged as acme_policy from the collection."""
+    try:
+        result = vectorstore._collection.get(include=["metadatas"])
+        ids = result.get("ids") or []
+        metadatas = result.get("metadatas") or []
+        remove_ids = [
+            chunk_id
+            for chunk_id, metadata in zip(ids, metadatas)
+            if (metadata or {}).get("doc_type") == "acme_policy"
+        ]
+        if remove_ids:
+            vectorstore._collection.delete(ids=remove_ids)
+        return len(remove_ids)
+    except Exception:
+        return 0
+
+
 def main() -> None:
-    """Load mock policies, add new chunks to Chroma, and print a summary."""
+    """Load mock policies, optionally replace existing policy chunks, and ingest."""
+    parser = argparse.ArgumentParser(description="Ingest Acme Corp mock policies into Chroma")
+    parser.add_argument(
+        "--replace",
+        action="store_true",
+        help="Delete existing acme_policy chunks before ingesting updated policy files",
+    )
+    args = parser.parse_args()
+
     validate_api_key()
 
     policy_docs = load_markdown_policies()
@@ -45,8 +75,12 @@ def main() -> None:
         sys.exit(1)
 
     vectorstore = get_vectorstore()
-    existing_ids = _existing_chunk_ids(vectorstore)
+    removed_count = 0
+    if args.replace:
+        removed_count = _delete_acme_policy_chunks(vectorstore)
+        print(f"Removed existing acme_policy chunks: {removed_count}")
 
+    existing_ids = _existing_chunk_ids(vectorstore)
     new_chunks = [
         chunk for chunk in chunks if chunk.metadata.get("chunk_id") not in existing_ids
     ]

@@ -17,7 +17,7 @@
     "expected_decision": ["Escalate", "Not allowed"],
     "expected_risk_level": ["High"],
     "expected_required_approvals": ["Compliance"],
-    "must_cite_sections": ["GH-002"],
+    "must_cite_sections": ["GH-004"],
     "expected_open_questions": [],
     "notes": "Cash gifts are high risk."
   },
@@ -39,7 +39,7 @@
     "expected_decision": ["Needs more information", "Needs approval"],
     "expected_risk_level": ["Medium"],
     "expected_required_approvals": [],
-    "must_cite_sections": ["RE-005"],
+    "must_cite_sections": ["RE-004"],
     "expected_open_questions": ["amount"],
     "notes": "Lost receipt documentation case."
   },
@@ -50,7 +50,7 @@
     "expected_decision": ["Needs approval"],
     "expected_risk_level": ["Medium"],
     "expected_required_approvals": ["Manager", "HR"],
-    "must_cite_sections": ["RW-003"],
+    "must_cite_sections": ["RW-003", "RW-004"],
     "expected_open_questions": [],
     "notes": "Medical remote work."
   },
@@ -61,7 +61,7 @@
     "expected_decision": ["Escalate"],
     "expected_risk_level": ["High"],
     "expected_required_approvals": ["HR", "Legal"],
-    "must_cite_sections": ["RW-004"],
+    "must_cite_sections": ["RW-005"],
     "expected_open_questions": [],
     "notes": "Cross-border remote work."
   },
@@ -83,7 +83,7 @@
     "expected_decision": ["Needs approval", "Escalate"],
     "expected_risk_level": ["High"],
     "expected_required_approvals": ["Information Security"],
-    "must_cite_sections": ["DA-005"],
+    "must_cite_sections": ["DA-004"],
     "expected_open_questions": [],
     "notes": "Sensitive HR data export."
   },
@@ -94,7 +94,7 @@
     "expected_decision": ["Needs approval"],
     "expected_risk_level": ["Medium"],
     "expected_required_approvals": ["Manager"],
-    "must_cite_sections": ["TE-006"],
+    "must_cite_sections": ["TE-011"],
     "expected_open_questions": [],
     "notes": "Hotel upgrade approval."
   },
@@ -116,7 +116,7 @@
     "expected_decision": ["Escalate"],
     "expected_risk_level": ["High"],
     "expected_required_approvals": ["Legal", "Compliance"],
-    "must_cite_sections": ["GH-009"],
+    "must_cite_sections": ["GH-007"],
     "expected_open_questions": [],
     "notes": "Public official gift escalation."
   },
