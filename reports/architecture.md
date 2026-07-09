@@ -260,6 +260,37 @@ Agent workflow:
 
 `User query -> intent -> scenario facts -> retrieval -> missing info -> decision -> next steps -> final answer -> trace`
 
+### 10. PolicyOps Grounded Decision Engine (Phase 2) - Implemented
+
+Phase 2 extends the linear agent with structured schemas, policy-area rules, citation verification, and clarifying questions.
+
+| Setting | Value |
+|---------|-------|
+| Schemas | `agent/schemas.py` (`ScenarioFacts`, `RetrievedPolicyChunk`, `PolicyDecision`) |
+| Decision rules | `agent/decision_rules.py` (`make_policy_decision`, area evaluators) |
+| Citation verify | `agent/citation_verifier.py` (`verify_citations`, `apply_citation_adjustments`) |
+| Answer format | `agent/answer_formatter.py` (`format_final_answer`) |
+| Tests | `tests/test_phase2_agent.py` (`unittest` + mocked `get_vectorstore`) |
+
+Phase 2 workflow:
+
+`User query -> intent -> scenario facts -> retrieval -> missing info -> policy decision -> citation verify -> clarifying question -> next steps -> final answer -> trace`
+
+**Confidence model (high level):**
+
+- Base from retrieval top score and rule strength
+- Subtract for critical missing information
+- Cap lower when chunks are empty or similarity is weak
+- Further adjust after citation verification warnings or low coverage
+
+**Citation model:**
+
+- Only retrieved chunks may appear in `verified_citations`
+- `section_id` preferred from metadata; regex fallback on section text
+- Weak coverage can lower confidence or shift decision to `Needs more information`
+
+**Not changed in Phase 2:** `src/retrieve.py`, `src/generate.py`, Chroma ingest behavior, mock policy markdown content.
+
 ## Metadata Schema
 
 | Field | Type | Example | Set by |

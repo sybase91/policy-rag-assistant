@@ -1,16 +1,23 @@
-"""Rule-based tools for PolicyOps Agent Phase 1."""
+"""Rule-based tools for PolicyOps Agent."""
 
 from __future__ import annotations
 
 import re
 
+from agent.decision_rules import make_policy_decision
+from agent.schemas import empty_scenario_facts
 from src.retrieve import get_vectorstore
 
-AMOUNT_PATTERN = re.compile(
+INR_PATTERN = re.compile(
     r"(?:₹|INR\s*|Rs\.?\s*)(\d[\d,]*(?:\.\d+)?)",
     re.IGNORECASE,
 )
+USD_PATTERN = re.compile(
+    r"(?:\$|USD\s*)(\d[\d,]*(?:\.\d+)?)",
+    re.IGNORECASE,
+)
 PLAIN_AMOUNT_PATTERN = re.compile(r"\b(\d[\d,]{3,})\b")
+SECTION_ID_REGEX = re.compile(r"\b(TE|RE|GH|RW|AM|DA)-\d{3}\b")
 
 
 def classify_intent_tool(user_query: str) -> str:
@@ -30,57 +37,134 @@ def classify_intent_tool(user_query: str) -> str:
     return "unknown"
 
 
-def _parse_amount(text: str) -> int | None:
-    """Extract a numeric amount from INR-style or plain number text."""
-    match = AMOUNT_PATTERN.search(text)
-    if match:
-        return int(float(match.group(1).replace(",", "")))
+def _parse_amount_and_currency(text: str) -> tuple[float | None, str | None]:
+    """Extract amount and currency from mixed formats."""
+    inr_match = INR_PATTERN.search(text)
+    if inr_match:
+        return float(inr_match.group(1).replace(",", "")), "INR"
+
+    usd_match = USD_PATTERN.search(text)
+    if usd_match:
+        return float(usd_match.group(1).replace(",", "")), "USD"
 
     plain_match = PLAIN_AMOUNT_PATTERN.search(text)
     if plain_match:
-        return int(plain_match.group(1).replace(",", ""))
-    return None
+        return float(plain_match.group(1).replace(",", "")), "INR"
+
+    return None, None
 
 
 def parse_scenario_tool(user_query: str) -> dict:
-    """Extract basic structured facts using lightweight heuristics."""
+    """Extract structured scenario facts using lightweight heuristics."""
     text = user_query.lower()
-    facts: dict = {"raw_query": user_query}
+    facts = empty_scenario_facts(user_query)
 
-    amount = _parse_amount(user_query)
+    amount, currency = _parse_amount_and_currency(user_query)
     if amount is not None:
         facts["amount"] = amount
-        facts["currency"] = "INR"
+        facts["currency"] = currency
+        facts["gift_value"] = amount
 
-    if "personal card" in text or "own card" in text:
+    documentation: list[str] = []
+    if "receipt" in text and "lost" not in text:
+        documentation.append("receipt mentioned")
+    if "lost receipt" in text or "lost my receipt" in text:
+        documentation.append("lost receipt")
+    facts["documentation_provided"] = documentation
+
+    if "personal card" in text or "own card" in text or "my own card" in text:
         facts["payment_method"] = "personal card"
-    if "external guest" in text or "client dinner" in text or "client meal" in text:
-        facts["people_involved"] = "external guests"
+    elif "company card" in text or "corporate card" in text:
+        facts["payment_method"] = "company card"
+
+    people: list[str] = []
+    if "external guest" in text or "external guests" in text:
+        people.append("external guests")
+        facts["external_parties_involved"] = True
+    if "client" in text:
+        people.append("client")
+        facts["external_parties_involved"] = True
+    if "vendor" in text:
+        people.append("vendor")
+        facts["vendor_or_client_involved"] = True
+    facts["people_involved"] = people
+
+    if any(word in text for word in ("client dinner", "client meal", "meal", "dinner", "taxi", "reimburse", "receipt")):
         facts["policy_area"] = "reimbursement"
-    elif "vendor" in text and "gift" in text:
+        if "client dinner" in text or "client meal" in text:
+            facts["expense_type"] = "client dinner"
+        elif "taxi" in text:
+            facts["expense_type"] = "taxi"
+        elif "meal" in text or "dinner" in text:
+            facts["expense_type"] = "meal"
+
+    if "gift" in text:
         facts["policy_area"] = "gifts_hospitality"
-        facts["people_involved"] = "vendor"
-    elif "remote" in text or "work from home" in text:
+        facts["expense_type"] = "gift"
+        if "vendor" in text:
+            facts["vendor_or_client_involved"] = True
+
+    if "remote" in text or "work from home" in text or "wfh" in text:
         facts["policy_area"] = "remote_work"
-    elif "hotel upgrade" in text or "upgrade" in text:
+
+    if "hotel upgrade" in text or ("upgrade" in text and "hotel" in text):
         facts["policy_area"] = "travel_expense"
-    elif "customer data" in text or "share data" in text:
+        facts["expense_type"] = "hotel upgrade"
+    elif "travel" in text or "trip" in text or "hotel" in text:
+        facts["policy_area"] = "travel_expense"
+        facts["expense_type"] = "travel"
+
+    data_types: list[str] = []
+    if "customer data" in text:
+        data_types.append("customer data")
         facts["policy_area"] = "data_access"
-    elif "reimburse" in text or "receipt" in text:
-        facts["policy_area"] = "reimbursement"
+        facts["sensitive_data_involved"] = True
+    if "hr data" in text:
+        data_types.append("hr data")
+        facts["policy_area"] = "data_access"
+        facts["sensitive_data_involved"] = True
+    if "finance data" in text:
+        data_types.append("finance data")
+        facts["policy_area"] = "data_access"
+        facts["sensitive_data_involved"] = True
+    if "confidential" in text:
+        facts["sensitive_data_involved"] = True
+    facts["data_types"] = data_types
+
+    if "external vendor" in text or ("vendor" in text and "share" in text):
+        facts["external_vendor_involved"] = True
+        facts["policy_area"] = "data_access"
+
+    if "public official" in text:
+        facts["public_official_involved"] = True
+        facts["policy_area"] = "gifts_hospitality"
+
+    if "cash gift" in text or "cash" in text and "gift" in text:
+        facts["cash_gift"] = True
+        facts["policy_area"] = "gifts_hospitality"
 
     if "medical" in text:
-        facts["reason"] = "medical"
+        facts["medical_reason"] = True
+
+    if "cross-border" in text or "another country" in text or "outside the country" in text:
+        facts["cross_border_work"] = True
 
     duration_match = re.search(r"(\d+)\s+(day|days|week|weeks)", text)
     if duration_match:
         facts["duration"] = f"{duration_match.group(1)} {duration_match.group(2)}"
 
     if "alcohol" in text:
-        facts["alcohol_included"] = True
+        facts["alcohol_mentioned"] = True
 
-    if "manager approval" in text or "approved by manager" in text:
-        facts["approval_status"] = "manager approved"
+    if any(word in text for word in ("already approved", "manager approved", "approved by manager")):
+        facts["approval_status"] = "approved"
+    elif "not approved" in text or "without approval" in text:
+        facts["approval_status"] = "not approved"
+    else:
+        facts["approval_status"] = "unknown"
+
+    if facts["policy_area"] == "" and "policy" in text:
+        facts["policy_area"] = "general"
 
     return facts
 
@@ -89,13 +173,25 @@ def _format_section(metadata: dict) -> str:
     """Build a readable section label from chunk metadata."""
     section_id = metadata.get("section_id")
     section_title = metadata.get("section_title")
-    policy_name = metadata.get("policy_name")
-
     if section_id and section_title:
         return f"{section_id} {section_title}"
+    if section_id:
+        return str(section_id)
+    if section_title:
+        return str(section_title)
+    policy_name = metadata.get("policy_name")
     if policy_name:
         return str(policy_name)
     return "Unknown section"
+
+
+def _extract_section_id(metadata: dict, section: str, text: str) -> str | None:
+    """Get section_id from metadata or regex fallback."""
+    section_id = metadata.get("section_id")
+    if section_id:
+        return str(section_id)
+    match = SECTION_ID_REGEX.search(section) or SECTION_ID_REGEX.search(text)
+    return match.group(0) if match else None
 
 
 def retrieve_policy_tool(user_query: str, top_k: int = 5) -> list[dict]:
@@ -107,20 +203,17 @@ def retrieve_policy_tool(user_query: str, top_k: int = 5) -> list[dict]:
     for doc, score in results:
         metadata = doc.metadata
         distance = float(score)
-        similarity = max(0.0, min(1.0, 1.0 - distance))
+        similarity = round(max(0.0, min(1.0, 1.0 - distance)), 2)
+        section = _format_section(metadata)
+        section_id = _extract_section_id(metadata, section, doc.page_content)
 
         normalized.append(
             {
                 "text": doc.page_content,
                 "source": metadata.get("source_file", metadata.get("policy_name", "unknown")),
-                "section": _format_section(metadata),
-                "score": round(similarity, 2),
-                "metadata": {
-                    "policy_name": metadata.get("policy_name"),
-                    "section_id": metadata.get("section_id"),
-                    "section_title": metadata.get("section_title"),
-                    "chunk_id": metadata.get("chunk_id"),
-                },
+                "section": section,
+                "section_id": section_id,
+                "score": similarity,
             }
         )
 
@@ -132,43 +225,125 @@ def missing_info_tool(
     scenario_facts: dict,
     retrieved_chunks: list[dict],
 ) -> list[str]:
-    """Return a list of missing details based on simple policy rules."""
+    """Return policy-area aware missing information."""
     text = user_query.lower()
     missing: list[str] = []
-
-    if any(word in text for word in ("reimburse", "claim", "expense", "dinner", "meal")):
-        if "amount" not in scenario_facts:
-            missing.append("amount")
-        if "receipt" not in text and "lost receipt" not in text:
-            missing.append("itemized receipt")
-        if "approval" not in text and "approved" not in text:
-            missing.append("approval status")
-        if ("client" in text or "guest" in text) and "guest" not in text and "attendee" not in text:
-            missing.append("guest details")
-
-    if "travel" in text or "trip" in text or "hotel" in text:
-        if "date" not in text and "duration" not in scenario_facts:
-            missing.append("travel details")
-
-    if "gift" in text and "amount" not in scenario_facts:
-        missing.append("gift value")
-
-    if ("remote" in text or "work from home" in text) and "duration" not in scenario_facts:
-        missing.append("remote work duration")
-
-    if "approval" in text and "approval_status" not in scenario_facts:
-        missing.append("approver information")
-
-    if "share" in text and "customer data" in text:
-        if "vendor" not in text:
-            missing.append("external party details")
-        missing.append("Information Security approval status")
+    policy_area = scenario_facts.get("policy_area", "general")
 
     if not retrieved_chunks:
         missing.append("relevant policy evidence")
 
-    # Preserve order while removing duplicates.
+    if policy_area == "reimbursement":
+        if scenario_facts.get("amount") is None:
+            missing.append("amount")
+        if "receipt mentioned" not in scenario_facts.get("documentation_provided", []) and "lost receipt" not in scenario_facts.get("documentation_provided", []):
+            if "receipt" not in text and "lost" not in text:
+                missing.append("itemized receipt")
+        if "business purpose" not in text:
+            missing.append("business purpose")
+        if scenario_facts.get("external_parties_involved") and "attendee" not in text and "guest" not in text:
+            missing.append("attendee names")
+        if scenario_facts.get("approval_status") == "unknown":
+            missing.append("approval status")
+        if scenario_facts.get("expense_type") in {"client dinner", "meal"} and not scenario_facts.get("alcohol_mentioned"):
+            if "alcohol" not in text:
+                missing.append("whether alcohol was included")
+
+    elif policy_area == "gifts_hospitality":
+        if scenario_facts.get("gift_value") is None and scenario_facts.get("amount") is None:
+            missing.append("gift value")
+        if not scenario_facts.get("people_involved"):
+            missing.append("giver/recipient details")
+        if "vendor" not in text and "client" not in text:
+            missing.append("whether vendor or client is involved")
+        if not scenario_facts.get("cash_gift") and "cash" not in text:
+            missing.append("whether the gift is cash or cash equivalent")
+        if scenario_facts.get("public_official_involved") is False and "public official" not in text:
+            missing.append("whether a public official is involved")
+
+    elif policy_area == "remote_work":
+        if not scenario_facts.get("duration"):
+            missing.append("remote work duration")
+        if "location" not in text and not scenario_facts.get("location"):
+            missing.append("work location")
+        if scenario_facts.get("approval_status") == "unknown":
+            missing.append("manager approval")
+        if scenario_facts.get("medical_reason") and "hr" not in text:
+            missing.append("HR approval for medical exception")
+        if scenario_facts.get("cross_border_work"):
+            missing.append("cross-border approval details")
+
+    elif policy_area == "data_access":
+        if not scenario_facts.get("data_types"):
+            missing.append("type of data")
+        if scenario_facts.get("external_vendor_involved") and scenario_facts.get("approval_status") == "unknown":
+            missing.append("Information Security approval status")
+        if scenario_facts.get("sensitive_data_involved"):
+            missing.append("data classification")
+
     return list(dict.fromkeys(missing))
+
+
+def generate_clarifying_question_tool(
+    missing_info: list[str],
+    scenario_facts: dict,
+    decision_result: dict,
+) -> str | None:
+    """Generate a short clarifying question when key details are missing."""
+    if not missing_info:
+        return None
+
+    policy_area = scenario_facts.get("policy_area", "general")
+    missing_text = " ".join(missing_info).lower()
+
+    if policy_area == "reimbursement":
+        return (
+            "Was alcohol included in the bill, and do you already have manager approval?"
+        )
+    if policy_area == "gifts_hospitality":
+        return (
+            "What is the approximate value of the gift, and is the giver a vendor, client, or public official?"
+        )
+    if policy_area == "remote_work":
+        return (
+            "How long do you need to work remotely, and do you already have manager or HR approval?"
+        )
+    if policy_area == "data_access":
+        return (
+            "What type of customer data will be shared, and has Security or Legal approved the external vendor?"
+        )
+    if "receipt" in missing_text:
+        return "Do you have an itemized receipt or approved lost-receipt documentation?"
+    return "Can you provide the missing details listed above before submitting this request?"
+
+
+def generate_next_steps_tool(
+    decision: str,
+    missing_info: list[str],
+    required_approvals: list[str] | None = None,
+) -> list[str]:
+    """Generate recommended next steps."""
+    steps: list[str] = []
+    required_approvals = required_approvals or []
+
+    if missing_info:
+        steps.append("Confirm the missing information before submitting the request.")
+        for item in missing_info:
+            steps.append(f"Provide {item}.")
+
+    for approval in required_approvals:
+        steps.append(f"Request {approval} approval if not already obtained.")
+
+    if decision == "Needs approval":
+        steps.append(
+            "Check whether manager, Finance, HR, Legal, or Information Security approval is required."
+        )
+    if decision == "Escalate":
+        steps.append("Escalate this request to the appropriate governance team before proceeding.")
+
+    steps.append("Attach relevant receipts or supporting documents.")
+    steps.append("Review the cited Acme Corp policy sections before taking action.")
+    return list(dict.fromkeys(steps))
 
 
 def basic_decision_tool(
@@ -176,77 +351,5 @@ def basic_decision_tool(
     retrieved_chunks: list[dict],
     missing_info: list[str],
 ) -> dict:
-    """Return a conservative Phase 1 policy decision."""
-    if not retrieved_chunks:
-        return {
-            "decision": "Needs more information",
-            "risk_level": "Medium",
-            "confidence": 0.35,
-        }
-
-    if missing_info:
-        decision = "Needs more information"
-        confidence = 0.55
-    else:
-        decision = "Needs approval"
-        confidence = 0.65
-
-    amount = scenario_facts.get("amount")
-    policy_area = scenario_facts.get("policy_area", "")
-
-    if policy_area == "gifts_hospitality" and isinstance(amount, int) and amount >= 10000:
-        decision = "Needs approval"
-        confidence = 0.7
-
-    if policy_area == "data_access":
-        decision = "Needs approval"
-        confidence = 0.75
-
-    if policy_area == "travel_expense" and "upgrade" in scenario_facts.get("raw_query", "").lower():
-        decision = "Needs approval"
-        confidence = 0.7
-
-    if scenario_facts.get("alcohol_included"):
-        decision = "Needs approval"
-        confidence = max(confidence, 0.68)
-
-    if policy_area == "remote_work" and scenario_facts.get("reason") == "medical":
-        decision = "Needs approval"
-        confidence = 0.62
-
-    weak_evidence = not retrieved_chunks or max(chunk["score"] for chunk in retrieved_chunks) < 0.35
-    if weak_evidence:
-        decision = "Needs more information"
-        confidence = min(confidence, 0.5)
-
-    risk_level = "Low"
-    if decision in {"Needs approval", "Needs more information"}:
-        risk_level = "Medium"
-    if policy_area == "data_access":
-        risk_level = "High"
-
-    return {
-        "decision": decision,
-        "risk_level": risk_level,
-        "confidence": round(confidence, 2),
-    }
-
-
-def generate_next_steps_tool(decision: str, missing_info: list[str]) -> list[str]:
-    """Generate simple next-step guidance for the user."""
-    steps: list[str] = []
-
-    if missing_info:
-        steps.append("Confirm the missing information before submitting the request.")
-        for item in missing_info:
-            steps.append(f"Provide {item}.")
-
-    if decision == "Needs approval":
-        steps.append(
-            "Check whether manager, Finance, HR, Legal, or Information Security approval is required."
-        )
-
-    steps.append("Attach relevant receipts or supporting documents.")
-    steps.append("Review the cited Acme Corp policy sections before taking action.")
-
-    return list(dict.fromkeys(steps))
+    """Backward-compatible wrapper around Phase 2 policy decision logic."""
+    return make_policy_decision(scenario_facts, retrieved_chunks, missing_info)

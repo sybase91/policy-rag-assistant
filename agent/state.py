@@ -21,6 +21,13 @@ class AgentState(TypedDict):
     draft_message: str
     final_answer: str
     trace: list[dict]
+    rationale_bullets: list[str]
+    required_approvals: list[str]
+    decision_factors: dict
+    verified_citations: list[dict]
+    citation_warnings: list[str]
+    citation_coverage: float
+    clarifying_question: str | None
 
 
 def create_initial_state(user_query: str) -> AgentState:
@@ -39,4 +46,11 @@ def create_initial_state(user_query: str) -> AgentState:
         "draft_message": "",
         "final_answer": "",
         "trace": [],
+        "rationale_bullets": [],
+        "required_approvals": [],
+        "decision_factors": {},
+        "verified_citations": [],
+        "citation_warnings": [],
+        "citation_coverage": 0.0,
+        "clarifying_question": None,
     }
