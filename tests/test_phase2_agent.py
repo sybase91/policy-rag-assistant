@@ -79,7 +79,7 @@ class ClientDinnerReimbursementTest(unittest.TestCase):
             "Can I reimburse a client dinner for INR 18,000 if two external guests "
             "attended and I paid with my own card?"
         )
-        state = run_policy_agent(query)
+        state = run_policy_agent(query, use_langgraph=False)
 
         self.assertEqual(state["intent"], "reimbursement_check")
         self.assertIn(
@@ -99,7 +99,7 @@ class VendorGiftTest(unittest.TestCase):
     def test_vendor_gift_scenario(self, mock_get_vectorstore: MagicMock) -> None:
         mock_get_vectorstore.return_value = _mock_vectorstore(MOCK_GIFT_CHUNKS)
         query = "Can I accept a INR 12,000 gift from a vendor?"
-        state = run_policy_agent(query)
+        state = run_policy_agent(query, use_langgraph=False)
 
         self.assertEqual(state["scenario_facts"].get("amount"), 12000.0)
         self.assertIn(
@@ -123,7 +123,7 @@ class MedicalRemoteWorkTest(unittest.TestCase):
     def test_medical_remote_work(self, mock_get_vectorstore: MagicMock) -> None:
         mock_get_vectorstore.return_value = _mock_vectorstore(MOCK_REMOTE_CHUNKS)
         query = "Am I allowed to work from home for two weeks because of a medical reason?"
-        state = run_policy_agent(query)
+        state = run_policy_agent(query, use_langgraph=False)
 
         combined = (
             state["final_answer"].lower()
@@ -140,7 +140,7 @@ class CustomerDataVendorTest(unittest.TestCase):
     def test_customer_data_external_vendor(self, mock_get_vectorstore: MagicMock) -> None:
         mock_get_vectorstore.return_value = _mock_vectorstore(MOCK_DATA_ACCESS_CHUNKS)
         query = "Can I share customer data with an external vendor for analysis?"
-        state = run_policy_agent(query)
+        state = run_policy_agent(query, use_langgraph=False)
 
         self.assertIn(state["risk_level"], {"Medium", "High"})
         self.assertIn(state["policy_decision"], {"Needs approval", "Escalate"})

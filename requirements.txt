@@ -9,3 +9,5 @@ python-dotenv
 pypdf
 pandas
 tiktoken
+langgraph
+pydantic

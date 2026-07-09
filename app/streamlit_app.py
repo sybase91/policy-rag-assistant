@@ -19,6 +19,12 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from agent.graph import run_policy_agent
+from agent.memory import (
+    get_previous_agent_state,
+    normalize_citation_entries,
+    save_agent_state_to_thread,
+    serialize_agent_state_for_ui,
+)
 from agent.citation_verifier import clean_excerpt
 from src.config import CHAT_MODEL, CHROMA_PERSIST_DIR
 from src.generate import answer_question
@@ -41,10 +47,13 @@ MODE_LABEL_TO_KEY = {
 MODE_KEY_TO_LABEL = {v: k for k, v in MODE_LABEL_TO_KEY.items()}
 
 MODE_DESCRIPTIONS = {
-    MODE_STANDARD: "Use this for direct questions over the knowledge base.",
+    MODE_STANDARD: (
+        "Use this for direct questions over the knowledge base. "
+        "Answers come from retrieved NIST and OWASP documents."
+    ),
     MODE_AGENT: (
-        "Use this for scenario-based policy decisions with trace, risk, "
-        "citations, and next steps."
+        "Use this for scenario-based policy decisions with state, tools, "
+        "retrieval, decision rules, citations, memory, and evaluation."
     ),
 }
 
@@ -146,6 +155,9 @@ def initialize_thread_state() -> None:
 
     if "pending_mode" not in st.session_state:
         st.session_state.pending_mode = None
+
+    if "eval_results" not in st.session_state:
+        st.session_state.eval_results = None
 
 
 def create_new_thread(mode: str) -> str:
@@ -397,6 +409,72 @@ def inject_custom_css() -> None:
             background-color: #f8fafc;
             border-right: 1px solid #e2e8f0;
         }
+        /* Main navigation tabs — high contrast, larger click targets */
+        .po-nav-label {
+            margin: 0 0 0.35rem 0;
+            font-size: 0.82rem;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: #475569;
+        }
+        div[data-testid="stTabs"] {
+            margin-bottom: 1.25rem;
+        }
+        div[data-testid="stTabs"] [data-baseweb="tab-list"] {
+            gap: 0.35rem;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+            border-radius: 12px;
+            padding: 0.45rem 0.55rem;
+            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+        }
+        div[data-testid="stTabs"] button[data-baseweb="tab"] {
+            height: auto !important;
+            min-height: 2.75rem;
+            padding: 0.55rem 1.15rem !important;
+            margin: 0 !important;
+            border-radius: 8px !important;
+            font-size: 1rem !important;
+            font-weight: 600 !important;
+            color: #334155 !important;
+            background-color: transparent !important;
+            border: 1px solid transparent !important;
+            opacity: 1 !important;
+        }
+        div[data-testid="stTabs"] button[data-baseweb="tab"]:hover {
+            color: #1d4ed8 !important;
+            background-color: #ffffff !important;
+            border-color: #bfdbfe !important;
+        }
+        div[data-testid="stTabs"] button[data-baseweb="tab"][aria-selected="true"] {
+            color: #1e3a8a !important;
+            background-color: #ffffff !important;
+            border-color: #93c5fd !important;
+            box-shadow: 0 1px 2px rgba(29, 78, 216, 0.12);
+        }
+        div[data-testid="stTabs"] [data-baseweb="tab-highlight"] {
+            background-color: #2563eb !important;
+            height: 3px !important;
+            border-radius: 3px 3px 0 0;
+        }
+        div[data-testid="stTabs"] [data-baseweb="tab-border"] {
+            display: none;
+        }
+        .stTabs [data-baseweb="tab-list"] {
+            gap: 0.35rem;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+            border-radius: 12px;
+            padding: 0.45rem 0.55rem;
+        }
+        .stTabs [data-baseweb="tab"],
+        .stTabs [role="tab"] {
+            font-size: 1rem !important;
+            font-weight: 600 !important;
+            color: #334155 !important;
+            opacity: 1 !important;
+        }
         </style>
         """,
         unsafe_allow_html=True,
@@ -569,7 +647,7 @@ def render_mode_header(mode: str) -> None:
         st.markdown(
             """
             <div class="po-header">
-                <span class="po-badge">Phase 2.5 — Answer Quality</span>
+                <span class="po-badge">Phase 3 — LangGraph Agent</span>
                 <h1>PolicyOps Agent</h1>
                 <p>Use this mode for scenario-based policy decisions with citations, risk, and workflow trace.</p>
             </div>
@@ -825,7 +903,7 @@ def render_developer_debug(agent_state: dict) -> None:
     """Show raw agent state for technical reviewers."""
     with st.expander("Developer Debug View", expanded=False):
         st.caption("Raw agent state JSON for architecture and debugging review.")
-        st.json(agent_state)
+        st.json(serialize_agent_state_for_ui(agent_state))
 
 
 def render_rag_extras(metadata: dict, message_index: int) -> None:
@@ -862,7 +940,9 @@ def render_rag_extras(metadata: dict, message_index: int) -> None:
 def render_citation_panels(agent_state: dict) -> None:
     """Render compact citation verification summary and cards."""
     coverage = float(agent_state.get("citation_coverage", 0.0) or 0.0)
-    verified = agent_state.get("verified_citations", [])
+    verified = normalize_citation_entries(
+        agent_state.get("verified_citations") or agent_state.get("citations")
+    )
     warnings = agent_state.get("citation_warnings", [])
 
     with st.expander("Citation verification", expanded=False):
@@ -1127,6 +1207,75 @@ def render_faq_section() -> None:
 # ---------------------------------------------------------------------------
 
 
+def render_evaluations_section() -> None:
+    """Render the agent evaluation dashboard."""
+    st.subheader("Agent Evaluations")
+    st.caption(
+        "Run the golden policy case set to measure decision quality, citations, "
+        "and retrieval behavior. Evals run only when you click the button."
+    )
+
+    if st.button("Run agent evals", type="primary"):
+        with st.spinner("Running agent evaluations..."):
+            from evals.run_agent_evals import run_evals
+
+            st.session_state.eval_results = run_evals(use_langgraph=True)
+
+    results_payload = st.session_state.eval_results
+    if not results_payload:
+        st.info("No evaluation results yet. Click **Run agent evals** to generate metrics.")
+        return
+
+    metrics = results_payload.get("metrics", {})
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("Total cases", metrics.get("total_cases", 0))
+    col2.metric("Pass rate", f"{metrics.get('pass_rate', 0):.0%}")
+    col3.metric("Decision accuracy", f"{metrics.get('decision_accuracy', 0):.0%}")
+    col4.metric("Citation hit rate", f"{metrics.get('must_cite_hit_rate', 0):.0%}")
+
+    col5, col6, col7 = st.columns(3)
+    col5.metric("Risk accuracy", f"{metrics.get('risk_level_accuracy', 0):.0%}")
+    col6.metric("Approval match", f"{metrics.get('required_approval_match', 0):.0%}")
+    col7.metric("Avg confidence", f"{metrics.get('average_confidence', 0):.2f}")
+
+    rows = []
+    for item in results_payload.get("results", []):
+        rows.append(
+            {
+                "id": item["id"],
+                "passed": item["checks"]["passed"],
+                "expected_decision": item["expected"]["decision"],
+                "actual_decision": item["actual"]["decision"],
+                "expected_risk": item["expected"]["risk_level"],
+                "actual_risk": item["actual"]["risk_level"],
+                "confidence": item["actual"].get("confidence"),
+            }
+        )
+    if rows:
+        st.markdown("#### Results table")
+        st.dataframe(rows, use_container_width=True)
+
+    failed = [item for item in results_payload.get("results", []) if not item["checks"]["passed"]]
+    with st.expander(f"Failed cases ({len(failed)})", expanded=bool(failed)):
+        if not failed:
+            st.success("All cases passed.")
+        for item in failed:
+            st.markdown(f"**{item['id']}** — {item['query']}")
+            st.write(
+                f"Expected decision: `{item['expected']['decision']}` | "
+                f"Actual: `{item['actual']['decision']}`"
+            )
+            st.write(
+                f"Expected risk: `{item['expected']['risk_level']}` | "
+                f"Actual: `{item['actual']['risk_level']}`"
+            )
+
+    with st.expander("Individual case details", expanded=False):
+        for item in results_payload.get("results", []):
+            st.markdown(f"**{item['id']}**")
+            st.json(item)
+
+
 def handle_user_query(query: str, mode: str) -> None:
     """Append user message, call the correct backend, and store the response."""
     append_message(mode, "user", query)
@@ -1155,13 +1304,21 @@ def handle_user_query(query: str, mode: str) -> None:
 
     try:
         if mode == MODE_AGENT:
+            thread = get_active_thread(MODE_AGENT)
+            previous_state = get_previous_agent_state(thread)
             with st.spinner("Running PolicyOps Agent workflow..."):
-                agent_state = run_policy_agent(query)
+                agent_state = run_policy_agent(
+                    query,
+                    thread_id=thread.get("thread_id"),
+                    conversation_history=thread.get("messages", []),
+                    previous_state=previous_state,
+                )
+            save_agent_state_to_thread(thread, agent_state)
             append_message(
                 mode,
                 "assistant",
                 agent_state["final_answer"],
-                metadata={"agent_state": agent_state},
+                metadata={"agent_state": serialize_agent_state_for_ui(agent_state)},
             )
         else:
             with st.spinner("Searching documents and generating answer..."):
@@ -1272,8 +1429,12 @@ def main() -> None:
     inject_custom_css()
     mode = render_sidebar()
 
-    tab_chat, tab_knowledge, tab_architecture, tab_faq = st.tabs(
-        ["Chat", "Knowledge Base", "Architecture", "FAQs"]
+    st.markdown(
+        '<p class="po-nav-label">Navigate</p>',
+        unsafe_allow_html=True,
+    )
+    tab_chat, tab_knowledge, tab_architecture, tab_faq, tab_eval = st.tabs(
+        ["💬 Chat", "📚 Knowledge Base", "🏗 Architecture", "❓ FAQs", "📊 Evaluations"]
     )
 
     with tab_chat:
@@ -1287,6 +1448,9 @@ def main() -> None:
 
     with tab_faq:
         render_faq_section()
+
+    with tab_eval:
+        render_evaluations_section()
 
 
 if __name__ == "__main__":

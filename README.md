@@ -1,463 +1,104 @@
 # PolicyOps Agent
 
-A beginner-friendly portfolio project that started as a **Policy RAG Assistant** over public AI governance PDFs and is now being extended into an **agentic policy decision assistant** called **PolicyOps Agent**.
+## 1. What This Is
 
-## What This Project Does
+PolicyOps Agent is an **agentic RAG system** for workplace policy decisions. It supports two modes in one Streamlit app:
 
-This project demonstrates how to build a grounded workplace policy assistant in stages:
+- **Standard RAG Chat** — direct Q&A over public AI governance documents
+- **PolicyOps Agent** — scenario-based policy review with structured decisions, citations, memory, and evaluation
 
-1. **RAG foundation** - ingest documents, chunk text, embed meaning, store vectors, retrieve evidence, and generate cited answers.
-2. **PolicyOps Agent foundation** - classify intent, extract scenario facts, retrieve policy sections, check missing information, make a conservative decision, and show a visual workflow trace.
+The system uses document ingestion, chunking, embeddings, vector retrieval, LangGraph orchestration, deterministic decision rules, citation verification, multi-turn thread memory, and a golden-case evaluation dashboard.
 
-The app can run in two modes:
+## 2. Why I Built This
 
-- **RAG Mode (default)** - original NIST / OWASP policy Q&A
-- **Agent Mode** - Acme Corp mock workplace policy scenarios with traceable workflow steps
+Basic RAG demos are common. Enterprise AI reviewers look for more:
 
-## Why Policy Documents Are Needed
+- Grounded answers with verifiable citations
+- Traceable agent workflows (not black-box chat)
+- Structured decisions with risk and confidence
+- Multi-turn clarification and memory
+- Evaluation before adding complexity
+- Clear separation between document Q&A and decision scenarios
 
-A language model can answer many general questions from training data, but that is not enough for policy assistance.
+This project shows how a policy assistant can evolve from a simple RAG chatbot into an **evaluation-ready agentic decision-support system**.
 
-| Approach | What it uses | Strength | Risk |
-|----------|--------------|----------|------|
-| **LLM general knowledge** | Training data | Fast, broad | May invent rules |
-| **RAG grounded answers** | Retrieved source documents | Verifiable citations | Depends on retrieval quality |
-| **Agentic workflow** | State + tools + retrieval + trace | Structured, debuggable decisions | More engineering complexity |
+## 3. Demo Modes
 
-PolicyOps Agent is designed to move from "chatbot answer" toward "traceable policy workflow."
+| Mode | Best for | Output |
+|------|----------|--------|
+| **Standard RAG Chat** | Direct knowledge-base questions | Grounded answer + PDF sources |
+| **PolicyOps Agent** | Workplace policy scenarios | Decision, risk, confidence, citations, trace, next steps |
 
-## Mock Policy Corpus
+Each mode uses **separate chat threads** so histories never mix.
 
-The **Acme Corp** policies in `data/policies/mock/` are **fictional** and created for demo purposes only.
+## 4. Architecture at a Glance
 
-They help the system answer realistic workplace questions about:
-
-- travel and expenses
-- reimbursement
-- gifts and hospitality
-- remote work
-- approvals
-- data access
-
-**Important:** These documents are not legal, HR, finance, or compliance advice.
-
-See [data/policies/source_references.md](data/policies/source_references.md) for the synthetic data disclaimer.
-
-## Folder Structure
+**RAG pipeline:**
 
 ```text
-policy-rag-assistant/
-??? app/                     # Streamlit UI
-??? src/                     # RAG pipeline (ingest, chunk, embed, retrieve, generate, evaluate)
-??? agent/                   # PolicyOps Agent workflow (state, tools, nodes, graph, trace)
-??? data/
-?   ??? raw/                 # NIST / OWASP PDFs
-?   ??? policies/mock/       # Synthetic Acme Corp markdown policies
-??? scripts/                 # Utility scripts such as mock policy ingestion
-??? evals/                   # Gold questions and evaluation outputs
-??? reports/                 # Architecture and evaluation reports
+Documents → Chunks → Embeddings → Vector Store → Retriever → Answer
 ```
 
-## Phase 0: Mock Policy Data
-
-### What was built
-
-- Six synthetic Acme Corp markdown policy files with stable section IDs
-- A source references / disclaimer file
-- Section-aware markdown ingestion for the existing Chroma index
-- An additive ingest script that does not wipe the NIST index
-
-### Why it matters
-
-The agent needs realistic company policy text to retrieve from. Without source documents, the system would have to guess.
-
-### Files created
-
-- `data/policies/mock/acme_travel_expense_policy.md`
-- `data/policies/mock/acme_reimbursement_policy.md`
-- `data/policies/mock/acme_gifts_hospitality_policy.md`
-- `data/policies/mock/acme_remote_work_policy.md`
-- `data/policies/mock/acme_approval_matrix.md`
-- `data/policies/mock/acme_data_access_policy.md`
-- `data/policies/source_references.md`
-- `src/ingest_policies.py`
-- `scripts/ingest_mock_policies.py`
-
-### How to ingest mock policies
-
-```bash
-python -m src.embed --rebuild
-python scripts/ingest_mock_policies.py
-```
-
-The first command builds the NIST baseline index. The second command **adds** Acme Corp policy chunks to the same Chroma collection.
-
-### How to test retrieval
-
-After ingestion, try questions such as:
-
-- `client dinner reimbursement 18000 INR`
-- `accept gift from vendor 12000`
-- `share customer data with external vendor`
-
-## Phase 1: Agent Foundation
-
-### What was built
-
-- A new `agent/` package with state, trace, tools, nodes, graph, and prompt placeholders
-- A linear workflow runner: `run_policy_agent(user_query)`
-- Rules-based Phase 1 tools for intent, scenario parsing, retrieval, missing info, decision, and next steps
-- An **Agent Mode** toggle in Streamlit
-
-### Why it matters
-
-This creates the technical foundation for a portfolio-ready agentic system without jumping straight to LangGraph, memory, or multi-agent orchestration.
-
-### Files created
-
-- `agent/__init__.py`
-- `agent/state.py`
-- `agent/trace.py`
-- `agent/tools.py`
-- `agent/nodes.py`
-- `agent/graph.py`
-- `agent/prompts.py`
-
-### Files modified
-
-- `app/streamlit_app.py`
-- `src/config.py` (added `MOCK_POLICY_DIR`)
-
-### How the agent workflow runs
+**Agent pipeline (Phase 3):**
 
 ```text
-User question
--> classify intent
--> parse scenario facts
--> retrieve policy chunks
--> check missing information
--> make basic decision
--> generate next steps
--> format final answer
--> display trace and state in the UI
+User Scenario → Intent → Hybrid Parser → Memory Merge → Retrieval
+→ Missing Info Check → Router → Decision / Clarify / Escalate
+→ Citation Verification → Final Answer → Thread Memory
 ```
-
-### What the state object means
-
-`AgentState` is the shared memory of one agent run. It stores the user query, extracted facts, retrieved chunks, missing info, decision, next steps, final answer, and trace.
-
-### What the trace means
-
-The trace is a beginner-friendly activity log of workflow steps. It shows what happened, not private chain-of-thought reasoning.
-
-### How to test Agent Mode
-
-```bash
-streamlit run app/streamlit_app.py
-```
-
-Turn on **Agent Mode** in the sidebar and ask an Acme Corp scenario question.
-
-## Phase 1 UI Improvements
-
-The Streamlit app was redesigned to feel more like an **enterprise AI workbench** for portfolio demos.
-
-### What changed in the UI
-
-- Added a stronger product header with title, subtitle, and phase badge
-- Introduced a welcome card with sample questions before the first chat
-- Redesigned the decision area into prominent metric cards
-- Displayed the final answer in a scannable card with clear sections
-- Replaced plain source lists with source cards (file, section, score, excerpt)
-- Rendered the agent trace as a workflow timeline
-- Moved raw JSON state into a collapsed **Developer Debug View**
-- Improved the sidebar into a control panel with clickable example questions
-
-### Why these UI elements matter
-
-| UI element | Why it helps |
-|------------|--------------|
-| **Decision cards** | Business viewers can quickly see intent, decision, risk, and confidence |
-| **Source cards** | Makes grounded retrieval visible and easier to trust |
-| **Agent trace** | Shows the workflow steps without exposing chain-of-thought |
-| **Developer debug view** | Lets technical reviewers inspect state while keeping the main UI clean |
-
-### Workflow diagram
 
 ```mermaid
 flowchart LR
-    userQuery[UserQuery] --> intent[Intent]
-    intent --> facts[ScenarioFacts]
-    facts --> retrieval[Retrieval]
-    retrieval --> missing[MissingInfo]
-    missing --> decision[Decision]
-    decision --> nextSteps[NextSteps]
-    nextSteps --> finalAnswer[FinalAnswer]
+    docs[Documents] --> chunks[Chunks]
+    chunks --> embed[Embeddings]
+    embed --> chroma[VectorStore]
+    chroma --> retrieve[Retriever]
+    retrieve --> langgraph[LangGraphAgent]
+    langgraph --> rules[DecisionRules]
+    langgraph --> cite[CitationVerifier]
+    rules --> answer[FinalAnswer]
+    cite --> answer
+    answer --> ui[StreamlitUI]
+    langgraph --> evals[EvaluationRunner]
 ```
 
-Text pipeline shown in the app:
-
-```text
-User Query -> Intent -> Scenario Facts -> Retrieval -> Missing Info -> Decision -> Citation Verify -> Clarifying Q -> Next Steps -> Final Answer
-```
-
-## Phase 2: Grounded Decision Engine
-
-### What changed
-
-Phase 2 upgrades the PolicyOps Agent from a basic linear workflow to a **grounded decision engine**:
-
-- **Structured schemas** (`agent/schemas.py`) document scenario facts, retrieved chunks, and policy decisions
-- **Policy-area decision rules** (`agent/decision_rules.py`) apply conservative reimbursement, gift, remote work, data access, and travel rules
-- **Citation verification** (`agent/citation_verifier.py`) only cites chunks that were actually retrieved
-- **Clarifying questions** when important scenario details are missing
-- **Structured final answers** (`agent/answer_formatter.py`) with rationale, approvals, verified citations, and disclaimer
-- **Lightweight tests** (`tests/test_phase2_agent.py`) using `unittest` and mocked retrieval
-
-### Beginner explanations
-
-| Concept | What it means |
-|---------|----------------|
-| **Scenario facts** | Structured fields extracted from the user question (amount, policy area, payment method, etc.) |
-| **Decision rules** | Deterministic if/then logic aligned with Acme mock policy thresholds |
-| **Citation verification** | Checks that cited policy sections came from retrieval, not invented text |
-| **Confidence** | A score based on rule strength, retrieval quality, missing info, and citation coverage |
-| **Clarifying question** | One follow-up question when the agent cannot decide confidently yet |
-
-### Files created
-
-- `agent/schemas.py`
-- `agent/decision_rules.py`
-- `agent/citation_verifier.py`
-- `agent/answer_formatter.py`
-- `tests/test_phase2_agent.py`
-
-### Files modified
-
-- `agent/state.py` — Phase 2 fields (`rationale_bullets`, `verified_citations`, `clarifying_question`, etc.)
-- `agent/tools.py` — richer parsing, normalized retrieval with `section_id`, policy-aware missing info
-- `agent/nodes.py` — `verify_citations` and `generate_clarifying_question` nodes
-- `agent/graph.py` — extended 9-step workflow
-- `agent/prompts.py` — Phase 2 placeholder notes
-- `app/streamlit_app.py` — Phase 2 badge, rationale, approvals, citation panels
-
-### Phase 2 workflow
-
-```mermaid
-flowchart LR
-    userQuery[UserQuery] --> intent[Intent]
-    intent --> facts[ScenarioFacts]
-    facts --> retrieval[Retrieval]
-    retrieval --> missing[MissingInfo]
-    missing --> decision[PolicyDecision]
-    decision --> verify[CitationVerify]
-    verify --> clarify[ClarifyingQuestion]
-    clarify --> nextSteps[NextSteps]
-    nextSteps --> finalAnswer[FinalAnswer]
-```
-
-### How to test Phase 2
-
-```bash
-source .venv/bin/activate
-python scripts/ingest_mock_policies.py
-python -m unittest tests.test_phase2_agent -v
-python -c "from agent.graph import run_policy_agent; s=run_policy_agent('Can I reimburse a client dinner for INR 18,000 if two external guests attended and I paid with my own card?'); print(s['final_answer'])"
-streamlit run app/streamlit_app.py
-```
-
-### Phase 2 Beginner Explainer
-
-**What we built:** A grounded decision engine that parses scenarios, retrieves policy evidence, applies area-specific rules, verifies citations, asks clarifying questions, and returns a structured answer.
-
-**Why:** Portfolio demos need more than a chatbot reply — they need traceable decisions, visible evidence, and conservative handling of missing information.
-
-**Key files:** `agent/schemas.py`, `agent/decision_rules.py`, `agent/citation_verifier.py`, `agent/answer_formatter.py`, `agent/graph.py`, `app/streamlit_app.py`.
-
-**Workflow:** classify → parse → retrieve → missing info → decide → verify citations → clarifying question → next steps → final answer.
-
-**How to test:** run `python -m unittest tests.test_phase2_agent -v`, then try PolicyOps Agent in Streamlit.
-
-**Limitations:** still rules-based (no LLM reasoning), no LangGraph, no persistent memory, synthetic policies only.
-
-**Phase 3 preview:** optional LangGraph migration, stronger LLM-assisted parsing, evaluation dashboard, and memory for multi-turn scenarios.
-
-### Commands to run the app
-
-```bash
-source .venv/bin/activate
-python -m src.embed --rebuild
-python scripts/ingest_mock_policies.py
-streamlit run app/streamlit_app.py
-```
-
-### Example questions to test the UI
-
-- Can I reimburse a client dinner for INR 18,000 if two external guests attended and I paid with my own card?
-- Am I allowed to work from home for two weeks because of a medical reason?
-- Can I accept a INR 12,000 gift from a vendor?
-- Can I share customer data with an external vendor for analysis?
-
-### Screenshots
-
-Add screenshots here after testing:
-
-- Welcome screen
-- Decision cards and final answer
-- Retrieved source cards
-- Agent workflow trace
-- Developer debug view
-
-## UI Refactor: Separated Chat Modes and Threads
-
-The Streamlit app now keeps **Standard RAG Chat** and **PolicyOps Agent** in separate conversation threads so histories never mix.
-
-### Why separate threads?
-
-Previously, a single `messages` list was shared between modes. Switching the Agent Mode toggle could show RAG answers beside agent decision cards in the same thread, which was confusing in demos.
-
-Now each mode has its own thread store:
-
-- `standard_threads` + `active_standard_thread_id`
-- `agent_threads` + `active_agent_thread_id`
-
-### What is a thread?
-
-A thread is one conversation within a mode. It stores:
-
-- `thread_id`, `title`, `created_at`, `updated_at`
-- `messages` — user and assistant turns with optional `metadata`
-
-Thread titles are generated from the first user message (about 48 characters). Empty threads show **New chat**.
-
-### Navigation changes
-
-| Area | What changed |
-|------|----------------|
-| **Sidebar** | Clear mode radio, thread list, + New thread, Clear current thread, short knowledge-base counts |
-| **Main chat** | Example questions appear when the active thread is empty |
-| **Tabs** | Chat, Knowledge Base, Architecture, FAQs moved out of the sidebar |
-| **Architecture note** | Removed from sidebar; see Architecture tab |
-
-### How to use
-
-1. Choose **Standard RAG Chat** or **PolicyOps Agent** in the sidebar.
-2. Ask a question or click an example in the main chat area.
-3. Click **+ New thread** to start a fresh conversation in the current mode.
-4. Switch modes — the other mode's threads stay separate and accessible.
-5. Open **Knowledge Base**, **Architecture**, or **FAQs** tabs for reference content.
-
-### Run the app
-
-```bash
-streamlit run app/streamlit_app.py
-```
-
-### UI testing checklist
-
-1. Open the app.
-2. Create a Standard RAG Chat thread (default mode may be PolicyOps Agent — switch if needed).
-3. Ask a knowledge-base question.
-4. Switch to PolicyOps Agent.
-5. Confirm the standard thread does not appear in agent mode.
-6. Create an agent thread (+ New thread).
-7. Ask a policy scenario.
-8. Confirm decision card, citations, and trace appear.
-9. Switch back to Standard RAG Chat.
-10. Confirm standard chat history is preserved separately.
-11. Create a new thread in either mode.
-12. Confirm the old thread is still accessible in the sidebar list.
-13. Open the Architecture tab.
-14. Open the FAQs tab.
-
-## Phase 2.5: Answer Quality and UI Cleanup
-
-Phase 2.5 polishes the PolicyOps Agent answer experience without adding Phase 3 features.
-
-### Why this cleanup was needed
-
-During Streamlit testing, agent answers were often:
-
-- Too verbose and repetitive
-- Downgraded to **Needs more information** when a useful provisional decision was already possible
-- Hard to scan because citations and retrieved sources dominated the page
-
-### Blocking information vs open questions
-
-| Type | Meaning | Example |
-|------|---------|---------|
-| **Blocking missing info** | Prevents any useful decision | No policy chunks retrieved, gift value unknown |
-| **Open questions** | Useful follow-ups that do not block a provisional decision | Cash equivalent?, public official?, itemized receipt? |
-
-**Key rule:** secondary missing details should appear under **Open questions**, not automatically change the decision to **Needs more information**.
-
-### Decision calibration (priority)
-
-1. **Escalate** — public official, sensitive external data sharing, cross-border work, cash gifts
-2. **Not allowed** — clearly prohibited actions
-3. **Needs approval** — enough facts to know approval is required (e.g. gift ≥ INR 10,000, client meal thresholds)
-4. **Allowed** — facts and policy support the action
-5. **Needs more information** — only when truly blocked (missing essential facts or no retrieved evidence)
-
-### Answer format improvements
-
-The final answer is now concise and modular:
-
-- Short answer
-- Why this decision (max 3 bullets)
-- Required approvals
-- Open questions
-- Recommended next steps (max 5)
-- Compact citation section IDs
-- Clarifying question when relevant
-
-Default style: `ANSWER_STYLE = "concise"` in `agent/answer_formatter.py`.
-
-### UI improvements
-
-- Decision card uses color accents by decision type
-- Citation verification is compact with metrics and short excerpts
-- Retrieved sources and workflow trace are collapsed by default
-- Developer Debug View remains collapsed
-
-### Example before / after
-
-**Before**
-
-```text
-Decision: Needs more information
-Missing information:
-- whether the gift is cash or cash equivalent
-- whether a public official is involved
-```
-
-**After**
-
-```text
-Decision: Needs approval
-Required approvals:
-- Manager
-- Compliance
-Open questions:
-- whether the gift is cash or cash equivalent
-- whether a public official is involved
-```
-
-### How to test
-
-```bash
-source .venv/bin/activate
-python -m unittest tests.test_phase2_agent -v
-streamlit run app/streamlit_app.py
-```
-
-Try in **PolicyOps Agent** mode:
-
-- Can I accept an INR 12,000 gift from a vendor?
-- Can I reimburse a client dinner for INR 18,000 if two external guests attended and I paid with my own card?
-- Can I share customer data with an external vendor for analysis?
-
-## How to Run Locally
+## 5. Phase-by-Phase Build
+
+| Phase | What changed | Why it mattered | Key files |
+|-------|--------------|-----------------|-----------|
+| **0** | Synthetic Acme Corp policies + ingest | Realistic workplace corpus | `data/policies/mock/`, `scripts/ingest_mock_policies.py` |
+| **1** | Agent foundation, trace, Streamlit Agent Mode | Structured workflow over retrieval | `agent/state.py`, `agent/nodes.py`, `agent/graph.py` |
+| **2** | Grounded decision engine, citation verify | Auditable structured decisions | `agent/decision_rules.py`, `agent/citation_verifier.py` |
+| **2.5** | Answer quality + UI cleanup | Useful decisions vs over-blocking | `agent/answer_formatter.py`, blocking vs open questions |
+| **3** | LangGraph, LLM parsing, memory, evals | Stateful enterprise-grade agent | `agent/langgraph_workflow.py`, `agent/memory.py`, `evals/` |
+
+## 6. Key Technical Concepts
+
+- **RAG** — Retrieve relevant chunks, then generate or reason over them instead of guessing from training data.
+- **Chunking** — Split documents into searchable segments with metadata like section IDs.
+- **Embeddings** — Convert text into vectors for similarity search.
+- **Vector database** — Chroma stores embeddings for fast retrieval.
+- **Agent state** — Shared memory for one agent run (facts, decision, citations, trace).
+- **LangGraph** — Stateful graph orchestration with conditional routing between nodes.
+- **Tool use** — Deterministic functions for parsing, retrieval, missing-info checks, and next steps.
+- **Conditional routing** — Route to clarify, decide, or escalate based on blocking info and risk flags.
+- **Structured outputs** — Hybrid heuristic + optional LLM parsing into typed scenario fields.
+- **Citation verification** — Only cite chunks that were actually retrieved.
+- **Memory** — Merge prior scenario facts with follow-up user replies in the same thread.
+- **Evals** — Golden cases with transparent metrics for decision and citation quality.
+- **Guardrails** — LLM parses scenarios; deterministic rules make final decisions.
+
+## 7. Key Architectural Decisions
+
+- **Synthetic policies** instead of real company data for safe portfolio demos
+- **Deterministic rules + LLM-assisted parsing** — LLM does not make the final decision
+- **Citations must come from retrieved chunks** — never invented section IDs
+- **Blocking vs open questions** — secondary missing details do not always block useful decisions
+- **LangGraph** for stateful orchestration and routing
+- **Streamlit** for portfolio-friendly UI with separated threads and tabs
+- **Eval dashboard** to demonstrate quality thinking before production scale
+
+## 8. How To Run
 
 ```bash
 git clone https://github.com/sybase91/policy-rag-assistant.git
@@ -466,109 +107,99 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
-```
+# Add your OPENAI_API_KEY to .env
 
-Set your local key in `.env`:
-
-```text
-OPENAI_API_KEY=your_openai_api_key_here
-```
-
-Build indexes and run the app:
-
-```bash
 python -m src.embed --rebuild
 python scripts/ingest_mock_policies.py
 streamlit run app/streamlit_app.py
 ```
 
-Optional original RAG commands:
+**Agent tests and evals:**
 
 ```bash
-python -m src.generate
-python -m src.evaluate
+python -m unittest tests.test_phase2_agent tests.test_phase3_agent -v
+python evals/run_agent_evals.py
 ```
 
-## Example Questions
+**Optional env flags** (see `.env.example`):
 
-### Agent Mode (Acme Corp)
+- `USE_LANGGRAPH=true`
+- `USE_LLM_PARSER=true`
+- `LLM_PARSER_MODEL=gpt-4o-mini`
 
-- Can I reimburse a client dinner for INR 18,000 if two external guests attended and I paid with my own card?
-- Am I allowed to work from home for two weeks because of a medical reason?
-- Can I accept a INR 12,000 gift from a vendor?
-- What is the travel reimbursement policy?
-- Can I book a hotel upgrade during a business trip?
-- Can I share customer data with an external vendor for analysis?
-- I lost my receipt for a taxi ride. Can I still claim reimbursement?
+## 9. Example Questions
 
-### RAG Mode (NIST / OWASP)
+**Standard RAG Chat**
 
 - What is prompt injection?
-- What are the core functions of the NIST AI Risk Management Framework?
+- What are the core functions of the NIST AI RMF?
 - What risks are specific to generative AI systems?
 
-## Beginner Explanation
+**PolicyOps Agent**
 
-Simple data flow:
+- Can I accept an INR 12,000 gift from a vendor?
+- Can I reimburse a client dinner for INR 18,000 if two external guests attended and I paid with my own card?
+- Can I share customer data with an external vendor for analysis?
 
-```text
-User question
--> agent state
--> intent classification
--> scenario parsing
--> policy retrieval
--> missing info check
--> decision
--> next steps
--> final answer
--> trace display
-```
+**Multi-turn follow-up**
 
-In RAG Mode, the app skips the agent workflow and uses the original `answer_question()` path.
+1. Can I accept an INR 12,000 gift from a vendor?
+2. It is not cash and no public official is involved.
 
-## Current Limitations
+## 10. Evaluation
 
-- Decision logic is rule-based (not LLM-driven reasoning)
-- Mock policy data is synthetic
-- No full LangGraph implementation yet
-- No persistent memory yet
-- No evaluation dashboard for the agent yet
-- No authentication or deployment yet
-- Not suitable for real HR, legal, finance, or compliance decisions
+Golden cases live in `evals/golden_policy_cases.json` (18 scenarios).
 
-## Next Phase
-
-Phase 3 may add:
-
-- optional LangGraph migration
-- LLM-assisted scenario parsing and answer drafting
-- persistent memory for multi-turn conversations
-- agent evaluation dashboard
-- stronger deployment and auth patterns
-
-## Appendix: NIST RAG Baseline (Phases 1-6)
-
-The original project still includes a complete public-policy RAG baseline:
-
-- Phase 1: PDF ingestion and chunking
-- Phase 2: embeddings and Chroma
-- Phase 3: retrieval
-- Phase 4: grounded answer generation
-- Phase 5: Streamlit chat UI
-- Phase 6: basic v0.1 evaluation harness
-
-Use RAG Mode in Streamlit or run:
+**Metrics:** decision accuracy, risk accuracy, approval match, citation presence, must-cite hit rate, open-question relevance, retrieval hit rate, average confidence, escalation precision.
 
 ```bash
-python -m src.generate
-python -m src.evaluate
+python evals/run_agent_evals.py
 ```
 
-See [reports/architecture.md](reports/architecture.md) for more technical detail.
+Results are saved to `evals/latest_eval_results.json` and viewable in the Streamlit **Evaluations** tab.
+
+**Interpreting failures:** compare expected vs actual decision/risk in the failed-cases expander. Loosen golden expectations or improve rules/retrieval for recurring misses.
+
+## 11. Known Limitations
+
+- Synthetic Acme Corp policies — not legal, HR, finance, or compliance advice
+- LLM parsing may fail and falls back to heuristics
+- Thread memory is per browser session (optional JSON persistence via `THREAD_PERSISTENCE`)
+- Eval set is small but useful; retrieval is mocked in CI eval runner
+- Decision rules are simplified portfolio logic, not production policy engines
+- No authentication, multi-user SaaS, or production observability
+
+## 12. Lessons Learned / Pitfalls
+
+- RAG alone is not enough for decision workflows — structure and rules matter
+- Missing information should not always block a useful provisional answer
+- Citation formatting affects trust as much as retrieval quality
+- Memory is essential for clarifying-question follow-ups
+- Evals should exist before adding more agent complexity
+- UI separation matters when standard chat and agent mode coexist
+
+## 13. Roadmap
+
+- **Phase 4** — Guardrails and human approval workflow
+- **Phase 5** — Deployment, monitoring, and analytics
+- **Phase 6** — Enterprise integrations (Slack, Teams, Jira, ServiceNow)
+
+---
 
 ## Safety Note
 
 - Keep your OpenAI API key only in local `.env`
 - Never commit `.env`
-- `data/processed/` is gitignored because it contains the local Chroma database
-- Treat Acme Corp policies as demo-only synthetic content
+- `data/processed/` is gitignored (Chroma database)
+- Acme Corp policies are fictional demo content
+
+## Appendix: NIST RAG Baseline
+
+The repo also includes a full NIST/OWASP RAG baseline (ingest, embed, retrieve, generate, evaluate). Use **Standard RAG Chat** in Streamlit or:
+
+```bash
+python -m src.generate
+python -m src.evaluate
+```
+
+See [reports/architecture.md](reports/architecture.md) for technical detail.

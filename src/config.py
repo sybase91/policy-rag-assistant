@@ -1,5 +1,6 @@
 """Project configuration: paths, defaults, and environment variables."""
 
+import os
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -21,3 +22,9 @@ EMBEDDING_MODEL = "text-embedding-3-small"
 
 CHAT_MODEL = "gpt-4o-mini"
 CHAT_TEMPERATURE = 0
+
+USE_LANGGRAPH = os.getenv("USE_LANGGRAPH", "true").lower() == "true"
+USE_LLM_PARSER = os.getenv("USE_LLM_PARSER", "true").lower() == "true"
+LLM_PARSER_MODEL = os.getenv("LLM_PARSER_MODEL", CHAT_MODEL)
+THREAD_PERSISTENCE = os.getenv("THREAD_PERSISTENCE", "false").lower() == "true"
+AGENT_THREADS_PATH = PROCESSED_DATA_DIR / "agent_threads.json"

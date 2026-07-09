@@ -5,8 +5,8 @@ from __future__ import annotations
 from typing import TypedDict
 
 
-class AgentState(TypedDict):
-    """Structured state passed through the linear agent workflow."""
+class AgentState(TypedDict, total=False):
+    """Structured state passed through the agent workflow."""
 
     user_query: str
     intent: str
@@ -30,6 +30,20 @@ class AgentState(TypedDict):
     citation_warnings: list[str]
     citation_coverage: float
     clarifying_question: str | None
+    # Phase 3 fields
+    thread_id: str | None
+    conversation_history: list[dict]
+    previous_scenario_facts: dict
+    merged_scenario_facts: dict
+    policy_area: str
+    parser_mode: str
+    router_path: str
+    errors: list[str]
+    thread_memory: dict
+
+
+class GraphState(AgentState, total=False):
+    """LangGraph-compatible state schema."""
 
 
 def create_initial_state(user_query: str) -> AgentState:
@@ -57,4 +71,13 @@ def create_initial_state(user_query: str) -> AgentState:
         "citation_warnings": [],
         "citation_coverage": 0.0,
         "clarifying_question": None,
+        "thread_id": None,
+        "conversation_history": [],
+        "previous_scenario_facts": {},
+        "merged_scenario_facts": {},
+        "policy_area": "",
+        "parser_mode": "heuristic",
+        "router_path": "",
+        "errors": [],
+        "thread_memory": {},
     }

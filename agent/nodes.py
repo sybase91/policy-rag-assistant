@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from agent.answer_formatter import format_final_answer
 from agent.citation_verifier import apply_citation_adjustments, verify_citations
+from agent.llm_parser import hybrid_parse_scenario
+from agent.memory import build_retrieval_query, merge_scenario_facts, slim_agent_state_snapshot
 from agent.state import AgentState
 from agent.decision_rules import make_policy_decision
 from agent.tools import (
@@ -15,6 +17,128 @@ from agent.tools import (
     retrieve_policy_tool,
 )
 from agent.trace import add_trace_step
+
+
+def initialize_state_node(state: AgentState) -> AgentState:
+    """Seed graph state from thread context and previous snapshots."""
+    add_trace_step(state, "initialize_state", "started", "Initializing graph state.")
+    previous = state.get("previous_scenario_facts", {})
+    if previous:
+        state["merged_scenario_facts"] = dict(previous)
+    add_trace_step(
+        state,
+        "initialize_state",
+        "completed",
+        "Graph state initialized.",
+        {"thread_id": state.get("thread_id"), "history_len": len(state.get("conversation_history", []))},
+    )
+    return state
+
+
+def hybrid_parse_scenario_node(state: AgentState) -> AgentState:
+    """Parse scenario facts using heuristics plus optional LLM enrichment."""
+    add_trace_step(state, "hybrid_parse_scenario", "started", "Parsing scenario with hybrid parser.")
+    try:
+        parsed = hybrid_parse_scenario(
+            state["user_query"],
+            conversation_history=state.get("conversation_history", []),
+            previous_scenario_facts=state.get("previous_scenario_facts", {}),
+        )
+        state["scenario_facts"] = parsed["facts"]
+        state["parser_mode"] = parsed.get("parser_mode", "heuristic")
+        if parsed.get("warnings"):
+            state.setdefault("errors", []).extend(parsed["warnings"])
+        add_trace_step(
+            state,
+            "hybrid_parse_scenario",
+            "completed",
+            f"Parser mode: {state['parser_mode']}.",
+            {"policy_area": state["scenario_facts"].get("policy_area"), "parser_mode": state["parser_mode"]},
+        )
+    except Exception as exc:  # noqa: BLE001
+        state["scenario_facts"] = parse_scenario_tool(state["user_query"])
+        state["parser_mode"] = "heuristic"
+        add_trace_step(state, "hybrid_parse_scenario", "failed", f"Hybrid parse failed: {exc}")
+    return state
+
+
+def merge_thread_memory_node(state: AgentState) -> AgentState:
+    """Merge previous and newly parsed scenario facts."""
+    add_trace_step(state, "merge_thread_memory", "started", "Merging thread memory.")
+    try:
+        previous = state.get("previous_scenario_facts", {})
+        current = state.get("scenario_facts", {})
+        merged = merge_scenario_facts(previous, current)
+        state["merged_scenario_facts"] = merged
+        state["scenario_facts"] = merged
+        state["policy_area"] = merged.get("policy_area", "")
+        add_trace_step(
+            state,
+            "merge_thread_memory",
+            "completed",
+            "Scenario facts merged with thread memory.",
+            {"policy_area": state["policy_area"], "merged_fields": list(merged.keys())[:8]},
+        )
+    except Exception as exc:  # noqa: BLE001
+        add_trace_step(state, "merge_thread_memory", "failed", f"Memory merge failed: {exc}")
+    return state
+
+
+def provisional_clarify_node(state: AgentState) -> AgentState:
+    """Set provisional decision when blocking information prevents a full decision."""
+    add_trace_step(state, "provisional_clarify", "started", "Setting provisional clarify path.")
+    state["policy_decision"] = "Needs more information"
+    state["risk_level"] = "Medium"
+    state["confidence"] = min(float(state.get("confidence", 0.0) or 0.0), 0.45)
+    state["rationale_bullets"] = [
+        "Essential facts or policy evidence are still missing for a confident decision."
+    ]
+    state["router_path"] = "clarify"
+    add_trace_step(state, "provisional_clarify", "completed", "Provisional clarify state set.")
+    return state
+
+
+def escalation_review_node(state: AgentState) -> AgentState:
+    """Force escalation for high-risk scenarios before citation verification."""
+    add_trace_step(state, "escalation_review", "started", "Reviewing high-risk escalation criteria.")
+    facts = state.get("merged_scenario_facts") or state.get("scenario_facts", {})
+    approvals = ["Compliance"]
+    rationale = ["This scenario has elevated governance or compliance risk."]
+
+    if facts.get("sensitive_data_involved") and facts.get("external_vendor_involved"):
+        approvals.extend(["Information Security", "Legal"])
+        rationale.append("Sensitive data shared externally requires Security and Legal review.")
+    if facts.get("public_official_involved"):
+        approvals.append("Legal")
+        rationale.append("Public official involvement requires Legal review.")
+    if facts.get("cash_gift"):
+        rationale.append("Cash or cash-equivalent gifts are high-risk and require escalation.")
+    if facts.get("cross_border_work"):
+        approvals.extend(["HR", "Legal"])
+        rationale.append("Cross-border work requires HR and Legal review.")
+
+    state["policy_decision"] = "Escalate"
+    state["risk_level"] = "High"
+    state["confidence"] = max(float(state.get("confidence", 0.0) or 0.0), 0.7)
+    state["rationale_bullets"] = rationale
+    state["required_approvals"] = list(dict.fromkeys(approvals))
+    state["router_path"] = "escalate"
+    add_trace_step(state, "escalation_review", "completed", "Escalation path selected.")
+    return state
+
+
+def save_thread_memory_node(state: AgentState) -> AgentState:
+    """Persist a slim memory snapshot for the next turn."""
+    add_trace_step(state, "save_thread_memory", "started", "Saving thread memory snapshot.")
+    state["thread_memory"] = slim_agent_state_snapshot(state)
+    add_trace_step(
+        state,
+        "save_thread_memory",
+        "completed",
+        "Thread memory snapshot saved.",
+        {"turn_snapshot": state["thread_memory"]},
+    )
+    return state
 
 
 def classify_intent_node(state: AgentState) -> AgentState:
@@ -58,7 +182,8 @@ def retrieve_policy_node(state: AgentState) -> AgentState:
     """Retrieve relevant policy chunks from the vector store."""
     add_trace_step(state, "retrieve_policy", "started", "Retrieving relevant policy sections.")
     try:
-        chunks = retrieve_policy_tool(state["user_query"], top_k=5)
+        query = build_retrieval_query(state)
+        chunks = retrieve_policy_tool(query, top_k=5)
         state["retrieved_chunks"] = chunks
         state["citations"] = [
             {
@@ -89,7 +214,7 @@ def check_missing_info_node(state: AgentState) -> AgentState:
     try:
         classified = missing_info_tool(
             state["user_query"],
-            state["scenario_facts"],
+            state.get("merged_scenario_facts") or state["scenario_facts"],
             state["retrieved_chunks"],
         )
         state["blocking_missing_info"] = classified["blocking_missing_info"]
@@ -118,11 +243,12 @@ def make_policy_decision_node(state: AgentState) -> AgentState:
     add_trace_step(state, "make_policy_decision", "started", "Evaluating policy decision rules.")
     try:
         decision_result = make_policy_decision(
-            state["scenario_facts"],
+            state.get("merged_scenario_facts") or state["scenario_facts"],
             state["retrieved_chunks"],
             state["blocking_missing_info"],
             state.get("open_questions", []),
         )
+        state["router_path"] = "decide"
         state["policy_decision"] = decision_result["decision"]
         state["risk_level"] = decision_result["risk_level"]
         state["confidence"] = decision_result["confidence"]

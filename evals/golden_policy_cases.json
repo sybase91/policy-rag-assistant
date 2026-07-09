@@ -1,0 +1,200 @@
+[
+  {
+    "id": "gift_001",
+    "query": "Can I accept an INR 12,000 gift from a vendor?",
+    "expected_policy_area": "gifts_hospitality",
+    "expected_decision": ["Needs approval", "Escalate"],
+    "expected_risk_level": ["Medium", "High"],
+    "expected_required_approvals": ["Manager", "Compliance"],
+    "must_cite_sections": ["GH-003"],
+    "expected_open_questions": ["cash", "public official"],
+    "notes": "Gift above INR 10,000 requires approval."
+  },
+  {
+    "id": "gift_002",
+    "query": "Can I accept a cash gift from a client?",
+    "expected_policy_area": "gifts_hospitality",
+    "expected_decision": ["Escalate", "Not allowed"],
+    "expected_risk_level": ["High"],
+    "expected_required_approvals": ["Compliance"],
+    "must_cite_sections": ["GH-002"],
+    "expected_open_questions": [],
+    "notes": "Cash gifts are high risk."
+  },
+  {
+    "id": "reimb_001",
+    "query": "Can I reimburse a client dinner for INR 18,000 if two external guests attended and I paid with my own card?",
+    "expected_policy_area": "reimbursement",
+    "expected_decision": ["Needs approval"],
+    "expected_risk_level": ["Medium"],
+    "expected_required_approvals": ["Manager"],
+    "must_cite_sections": ["TE-004", "RE-005"],
+    "expected_open_questions": ["receipt", "alcohol"],
+    "notes": "Client meal threshold case."
+  },
+  {
+    "id": "reimb_002",
+    "query": "I lost my receipt for a taxi ride. Can I still claim reimbursement?",
+    "expected_policy_area": "reimbursement",
+    "expected_decision": ["Needs more information", "Needs approval"],
+    "expected_risk_level": ["Medium"],
+    "expected_required_approvals": [],
+    "must_cite_sections": ["RE-005"],
+    "expected_open_questions": ["amount"],
+    "notes": "Lost receipt documentation case."
+  },
+  {
+    "id": "remote_001",
+    "query": "Am I allowed to work from home for two weeks because of a medical reason?",
+    "expected_policy_area": "remote_work",
+    "expected_decision": ["Needs approval"],
+    "expected_risk_level": ["Medium"],
+    "expected_required_approvals": ["Manager", "HR"],
+    "must_cite_sections": ["RW-003"],
+    "expected_open_questions": [],
+    "notes": "Medical remote work."
+  },
+  {
+    "id": "remote_002",
+    "query": "Can I work remotely from another country for one month?",
+    "expected_policy_area": "remote_work",
+    "expected_decision": ["Escalate"],
+    "expected_risk_level": ["High"],
+    "expected_required_approvals": ["HR", "Legal"],
+    "must_cite_sections": ["RW-004"],
+    "expected_open_questions": [],
+    "notes": "Cross-border remote work."
+  },
+  {
+    "id": "data_001",
+    "query": "Can I share customer data with an external vendor for analysis?",
+    "expected_policy_area": "data_access",
+    "expected_decision": ["Needs approval", "Escalate"],
+    "expected_risk_level": ["High"],
+    "expected_required_approvals": ["Information Security", "Legal"],
+    "must_cite_sections": ["DA-003"],
+    "expected_open_questions": [],
+    "notes": "External vendor data sharing."
+  },
+  {
+    "id": "data_002",
+    "query": "Can I export HR data to a third-party analytics vendor?",
+    "expected_policy_area": "data_access",
+    "expected_decision": ["Needs approval", "Escalate"],
+    "expected_risk_level": ["High"],
+    "expected_required_approvals": ["Information Security"],
+    "must_cite_sections": ["DA-005"],
+    "expected_open_questions": [],
+    "notes": "Sensitive HR data export."
+  },
+  {
+    "id": "travel_001",
+    "query": "Can I book a hotel upgrade during a business trip?",
+    "expected_policy_area": "travel_expense",
+    "expected_decision": ["Needs approval"],
+    "expected_risk_level": ["Medium"],
+    "expected_required_approvals": ["Manager"],
+    "must_cite_sections": ["TE-006"],
+    "expected_open_questions": [],
+    "notes": "Hotel upgrade approval."
+  },
+  {
+    "id": "travel_002",
+    "query": "What is the travel reimbursement policy for client meals?",
+    "expected_policy_area": "general",
+    "expected_decision": ["Allowed", "Needs approval", "Needs more information"],
+    "expected_risk_level": ["Low", "Medium"],
+    "expected_required_approvals": [],
+    "must_cite_sections": ["TE-004"],
+    "expected_open_questions": [],
+    "notes": "General policy question."
+  },
+  {
+    "id": "gift_003",
+    "query": "A public official sent me a gift worth INR 8,000. Can I keep it?",
+    "expected_policy_area": "gifts_hospitality",
+    "expected_decision": ["Escalate"],
+    "expected_risk_level": ["High"],
+    "expected_required_approvals": ["Legal", "Compliance"],
+    "must_cite_sections": ["GH-009"],
+    "expected_open_questions": [],
+    "notes": "Public official gift escalation."
+  },
+  {
+    "id": "reimb_003",
+    "query": "Can I claim INR 30,000 for a client dinner with alcohol included?",
+    "expected_policy_area": "reimbursement",
+    "expected_decision": ["Needs approval", "Escalate"],
+    "expected_risk_level": ["Medium", "High"],
+    "expected_required_approvals": ["Finance", "Manager"],
+    "must_cite_sections": ["TE-004", "RE-005"],
+    "expected_open_questions": [],
+    "notes": "High-value meal with alcohol."
+  },
+  {
+    "id": "ambig_001",
+    "query": "I need help with a workplace policy issue.",
+    "expected_policy_area": "general",
+    "expected_decision": ["Needs more information"],
+    "expected_risk_level": ["Medium"],
+    "expected_required_approvals": [],
+    "must_cite_sections": [],
+    "expected_open_questions": [],
+    "notes": "Ambiguous query."
+  },
+  {
+    "id": "gift_004",
+    "query": "Vendor sent a gift hamper worth INR 15,000. Is that allowed?",
+    "expected_policy_area": "gifts_hospitality",
+    "expected_decision": ["Needs approval"],
+    "expected_risk_level": ["Medium"],
+    "expected_required_approvals": ["Manager", "Compliance"],
+    "must_cite_sections": ["GH-003"],
+    "expected_open_questions": ["public official"],
+    "notes": "High-value vendor gift hamper."
+  },
+  {
+    "id": "remote_003",
+    "query": "Can I work from home for 3 days next week?",
+    "expected_policy_area": "remote_work",
+    "expected_decision": ["Needs approval", "Allowed"],
+    "expected_risk_level": ["Low", "Medium"],
+    "expected_required_approvals": ["Manager"],
+    "must_cite_sections": ["RW-002"],
+    "expected_open_questions": [],
+    "notes": "Short remote work request."
+  },
+  {
+    "id": "data_003",
+    "query": "Can I give a vendor access to finance data for a pilot?",
+    "expected_policy_area": "data_access",
+    "expected_decision": ["Needs approval", "Escalate"],
+    "expected_risk_level": ["High"],
+    "expected_required_approvals": ["Information Security", "Compliance"],
+    "must_cite_sections": ["DA-005"],
+    "expected_open_questions": [],
+    "notes": "Finance data external sharing."
+  },
+  {
+    "id": "reimb_004",
+    "query": "Can I reimburse a taxi for INR 2,500 with a receipt?",
+    "expected_policy_area": "reimbursement",
+    "expected_decision": ["Needs approval", "Allowed"],
+    "expected_risk_level": ["Low", "Medium"],
+    "expected_required_approvals": [],
+    "must_cite_sections": ["RE-005"],
+    "expected_open_questions": [],
+    "notes": "Low-value taxi reimbursement."
+  },
+  {
+    "id": "gift_005",
+    "query": "Can I accept a small branded notebook from a vendor?",
+    "expected_policy_area": "gifts_hospitality",
+    "expected_decision": ["Allowed", "Needs approval", "Needs more information"],
+    "expected_risk_level": ["Low", "Medium"],
+    "expected_required_approvals": [],
+    "must_cite_sections": ["GH-002"],
+    "expected_open_questions": ["gift value"],
+    "notes": "Low-value gift ambiguity."
+  }
+]

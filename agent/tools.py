@@ -169,6 +169,30 @@ def parse_scenario_tool(user_query: str) -> dict:
     return facts
 
 
+def merge_follow_up_facts(facts: dict, user_query: str) -> dict:
+    """Apply follow-up heuristics for short clarifying replies."""
+    text = user_query.lower()
+    updated = dict(facts)
+
+    if any(phrase in text for phrase in ("not cash", "no cash", "gift hamper", "not a cash")):
+        updated["cash_gift"] = False
+    if "cash gift" in text or ("cash" in text and "gift" in text and "not cash" not in text):
+        updated["cash_gift"] = True
+    if any(phrase in text for phrase in ("no public official", "not a public official", "no official")):
+        updated["public_official_involved"] = False
+    if "public official" in text and "no public official" not in text:
+        updated["public_official_involved"] = True
+    if any(phrase in text for phrase in ("have receipt", "itemized receipt", "receipt attached")):
+        docs = list(updated.get("documentation_provided", []))
+        if "receipt mentioned" not in docs:
+            docs.append("receipt mentioned")
+        updated["documentation_provided"] = docs
+    if any(phrase in text for phrase in ("manager approved", "already approved", "approved by manager")):
+        updated["approval_status"] = "approved"
+
+    return updated
+
+
 def _format_section(metadata: dict) -> str:
     """Build a readable section label from chunk metadata."""
     section_id = metadata.get("section_id")
@@ -256,9 +280,11 @@ def missing_info_tool(
     elif policy_area == "gifts_hospitality":
         if scenario_facts.get("gift_value") is None and scenario_facts.get("amount") is None:
             blocking.append("gift value")
-        if not scenario_facts.get("cash_gift") and "cash" not in text:
+        if scenario_facts.get("cash_gift") is not True and "cash" not in text:
             open_questions.append("whether the gift is cash or cash equivalent")
-        if not scenario_facts.get("public_official_involved") and "public official" not in text:
+        elif scenario_facts.get("cash_gift") is False:
+            pass
+        if scenario_facts.get("public_official_involved") is not True and "public official" not in text:
             open_questions.append("whether a public official is involved")
         if "vendor" not in text and "client" not in text:
             open_questions.append("whether vendor or client is involved")
