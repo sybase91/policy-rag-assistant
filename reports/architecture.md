@@ -10,6 +10,12 @@ This document describes the RAG pipeline architecture, data flow, and implementa
 PDFs -> Ingestion -> Chunking -> Embeddings -> Chroma Vector Store -> Retrieval -> Grounded Generation -> Streamlit UI -> Evaluation
 ```
 
+PolicyOps extension:
+
+```
+Acme mock policies -> Markdown ingestion -> Chroma Vector Store -> PolicyOps Agent workflow -> Agent Mode UI
+```
+
 ## Corpus Sources
 
 | Document | Purpose |
@@ -220,6 +226,39 @@ Phase 6 closes the quality loop: after retrieval and grounded generation, a simp
 Pipeline reminder:
 
 `PDFs -> Ingestion -> Chunking -> Embeddings -> Chroma Vector Store -> Retrieval -> Grounded Generation -> Streamlit UI -> Evaluation`
+
+### 8. PolicyOps Mock Corpus (Phase 0) - Implemented
+
+Phase 0 adds a second corpus source for workplace policy demos.
+
+| Setting | Value |
+|---------|-------|
+| Corpus location | `data/policies/mock/` |
+| Format | Synthetic Acme Corp Markdown policies |
+| Disclaimer | `data/policies/source_references.md` |
+| Ingestion module | `src/ingest_policies.py` |
+| Additive ingest command | `python scripts/ingest_mock_policies.py` |
+| Metadata | `source_file`, `policy_name`, `section_id`, `section_title`, `source_path`, `doc_type` |
+
+Important: mock-policy ingestion is additive. `python -m src.embed --rebuild` still rebuilds only the NIST PDF baseline.
+
+### 9. PolicyOps Agent Foundation (Phase 1) - Implemented
+
+Phase 1 adds a linear agent workflow on top of the existing retrieval stack.
+
+| Setting | Value |
+|---------|-------|
+| Package | `agent/` |
+| Entry function | `run_policy_agent(user_query)` |
+| Orchestrator | `agent/graph.py` |
+| Tools | rules-based intent, parsing, retrieval, missing info, decision, next steps |
+| UI integration | Agent Mode toggle in `app/streamlit_app.py` |
+| Trace | JSON-friendly workflow steps in `state["trace"]` |
+| Future-ready prompts | placeholders in `agent/prompts.py` |
+
+Agent workflow:
+
+`User query -> intent -> scenario facts -> retrieval -> missing info -> decision -> next steps -> final answer -> trace`
 
 ## Metadata Schema
 
