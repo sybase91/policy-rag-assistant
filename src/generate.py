@@ -15,9 +15,45 @@ from langchain_openai import ChatOpenAI
 
 from src.config import CHAT_MODEL, CHAT_TEMPERATURE
 from src.embed import validate_api_key
-from src.retrieve import retrieve_context
+from src.retrieve import retrieve_context, retrieve_context_with_scores
 
 REFUSAL_MESSAGE = "I don't know based on the provided documents."
+
+OUT_OF_CORPUS_TOPICS = ("refund", "parental leave", "bonus", "maternity leave", "paternity leave")
+SIMILARITY_THRESHOLD = 0.35
+ACME_EMPLOYEE_POLICY_MARKERS = ("reimbursement", "travel", "gift", "remote work", "data access")
+
+
+def _question_has_out_of_corpus_topic(question: str) -> bool:
+    lowered = question.lower()
+    return any(topic in lowered for topic in OUT_OF_CORPUS_TOPICS)
+
+
+def _chunk_source_name(metadata: dict) -> str:
+    return str(metadata.get("source_file", metadata.get("policy_name", "unknown"))).lower()
+
+
+def _chunk_is_acme_employee_policy(metadata: dict, text: str) -> bool:
+    source = _chunk_source_name(metadata)
+    combined = f"{source} {text.lower()}"
+    return source.startswith("acme") or any(marker in combined for marker in ACME_EMPLOYEE_POLICY_MARKERS)
+
+
+def _should_refuse_retrieval(question: str, scored_chunks: list[tuple[Document, float]]) -> bool:
+    if not scored_chunks:
+        return True
+
+    top_doc, top_score = scored_chunks[0]
+    if top_score < SIMILARITY_THRESHOLD:
+        return True
+
+    if not _question_has_out_of_corpus_topic(question):
+        return False
+
+    metadata = top_doc.metadata
+    text = top_doc.page_content
+    return _chunk_is_acme_employee_policy(metadata, text)
+
 
 SYSTEM_PROMPT = """You are an Enterprise AI Governance Assistant.
 
@@ -34,7 +70,8 @@ Rules:
   [source_file, page X]
 - Do not invent laws, policies, controls, citations, page numbers, or recommendations.
 - If multiple sources are relevant, cite multiple sources.
-- If the retrieved context is weak or unrelated, say that the documents do not provide enough information."""
+- If the retrieved context is weak or unrelated, say that the documents do not provide enough information.
+- If the question asks about company policies such as refunds, bonuses, or leave that are not covered in the retrieved employee reimbursement or travel context, refuse."""
 
 DEMO_QUESTIONS = [
     "What is prompt injection?",
@@ -94,15 +131,16 @@ def answer_question(question: str, k: int = 5) -> dict:
     validate_api_key()
 
     # Step 2: Retrieve relevant chunks from Chroma (Phase 3).
-    chunks = retrieve_context(question, k=k)
+    scored_chunks = retrieve_context_with_scores(question, k=k)
+    chunks = [doc for doc, _score in scored_chunks]
 
-    # Step 3: Refuse early if nothing was retrieved.
-    if not chunks:
+    # Step 3: Refuse early if nothing was retrieved or context is a poor topical match.
+    if not chunks or _should_refuse_retrieval(question, scored_chunks):
         return {
             "question": question,
             "answer": REFUSAL_MESSAGE,
             "sources": [],
-            "retrieved_context_count": 0,
+            "retrieved_context_count": len(chunks),
         }
 
     # Step 4: Format retrieved chunks into a context block for the LLM.

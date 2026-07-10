@@ -151,6 +151,18 @@ def escalation_review_node(state: AgentState) -> AgentState:
     if facts.get("vendor_contract_renewal") or facts.get("active_rfp"):
         approvals.extend(["Compliance", "Legal"])
         rationale.append("Vendor contract renewal or active RFP periods require Compliance review.")
+    if facts.get("data_already_shared"):
+        approvals.extend(["Information Security"])
+        rationale.append("Data already shared without approval requires immediate InfoSec notification.")
+    if "hr data" in facts.get("data_types", []) and facts.get("external_vendor_involved"):
+        approvals.extend(["HR", "Legal", "Information Security"])
+        rationale.append("HR data shared with an external vendor requires HR, Legal, and InfoSec escalation.")
+    if facts.get("public_ai_tool"):
+        approvals.append("Information Security")
+        rationale.append("Sensitive data in public AI tools requires Information Security review.")
+    if facts.get("personal_channel"):
+        approvals.append("Information Security")
+        rationale.append("Confidential data on personal channels is not permitted.")
 
     state["policy_decision"] = "Escalate"
     state["risk_level"] = "High"

@@ -39,6 +39,16 @@ def classify_intent_tool(user_query: str) -> str:
 
 def _parse_amount_and_currency(text: str) -> tuple[float | None, str | None]:
     """Extract amount and currency from mixed formats."""
+    if "actually" in text.lower() or "correction" in text.lower():
+        inr_matches = list(INR_PATTERN.finditer(text))
+        if inr_matches:
+            last = inr_matches[-1]
+            return float(last.group(1).replace(",", "")), "INR"
+        usd_matches = list(USD_PATTERN.finditer(text))
+        if usd_matches:
+            last = usd_matches[-1]
+            return float(last.group(1).replace(",", "")), "USD"
+
     inr_match = INR_PATTERN.search(text)
     if inr_match:
         return float(inr_match.group(1).replace(",", "")), "INR"
@@ -52,6 +62,22 @@ def _parse_amount_and_currency(text: str) -> tuple[float | None, str | None]:
         return float(plain_match.group(1).replace(",", "")), "INR"
 
     return None, None
+
+
+def _amount_not_required_for_decision(facts: dict) -> bool:
+    """True when policy can be decided without a numeric amount."""
+    return bool(
+        facts.get("alcohol_mentioned")
+        or facts.get("duplicate_claim")
+        or facts.get("personal_expense")
+        or facts.get("submission_days_late")
+        or facts.get("payment_method")
+        or facts.get("data_already_shared")
+        or facts.get("public_ai_tool")
+        or facts.get("personal_channel")
+        or facts.get("public_link_sharing")
+        or facts.get("cash_gift")
+    )
 
 
 def parse_scenario_tool(user_query: str) -> dict:
@@ -104,6 +130,19 @@ def parse_scenario_tool(user_query: str) -> dict:
         if "vendor" in text:
             facts["vendor_or_client_involved"] = True
 
+    if any(word in text for word in ("notebook", "branded", "hamper", "souvenir")) and (
+        "vendor" in text or "client" in text or "accept" in text
+    ):
+        facts["policy_area"] = "gifts_hospitality"
+        facts["expense_type"] = "gift"
+        facts["vendor_or_client_involved"] = True
+
+    if any(word in text for word in ("ticket", "match", "hospitality", "entertainment", "cricket")):
+        facts["policy_area"] = "gifts_hospitality"
+        facts["vendor_hospitality"] = True
+        if "vendor" in text:
+            facts["vendor_or_client_involved"] = True
+
     if "remote" in text or "work from home" in text or "wfh" in text:
         facts["policy_area"] = "remote_work"
 
@@ -123,12 +162,65 @@ def parse_scenario_tool(user_query: str) -> dict:
         data_types.append("hr data")
         facts["policy_area"] = "data_access"
         facts["sensitive_data_involved"] = True
-    if "finance data" in text:
+    if "finance report" in text or "finance data" in text:
         data_types.append("finance data")
         facts["policy_area"] = "data_access"
         facts["sensitive_data_involved"] = True
     if "confidential" in text:
         facts["sensitive_data_involved"] = True
+        if "confidential data" not in data_types:
+            data_types.append("confidential data")
+
+    late_match = re.search(r"(\d+)\s+days?\s+late", text) or re.search(
+        r"submitted.*?(\d+)\s+days?\s+late", text
+    )
+    if late_match:
+        facts["submission_days_late"] = int(late_match.group(1))
+        facts["policy_area"] = "reimbursement"
+
+    if any(word in text for word in ("twice", "duplicate", "same expense", "same taxi")):
+        facts["duplicate_claim"] = True
+        facts["policy_area"] = "reimbursement"
+
+    if "personal purchase" in text or "personal expense" in text:
+        facts["personal_expense"] = True
+        facts["policy_area"] = "reimbursement"
+
+    if re.search(r"(to a vendor|analytics vendor|external vendor|external analytics vendor)", text):
+        facts["external_vendor_involved"] = True
+        facts["policy_area"] = "data_access"
+
+    if "already sent" in text or "before security approval" in text:
+        facts["data_already_shared"] = True
+        facts["policy_area"] = "data_access"
+        facts["sensitive_data_involved"] = True
+
+    if any(word in text for word in ("chatgpt", "public ai", "ai tool", "another public ai")):
+        facts["public_ai_tool"] = True
+        facts["policy_area"] = "data_access"
+
+    if "personal gmail" in text or "personal email" in text:
+        facts["personal_channel"] = True
+        facts["policy_area"] = "data_access"
+        facts["sensitive_data_involved"] = True
+
+    if "public link" in text:
+        facts["public_link_sharing"] = True
+        facts["policy_area"] = "data_access"
+        facts["sensitive_data_involved"] = True
+
+    if "production log" in text or ("production" in text and "vendor" in text):
+        facts["production_access"] = True
+        facts["external_vendor_involved"] = True
+        facts["policy_area"] = "data_access"
+
+    if "employee hr data" in text or ("hr data" in text and "vendor" in text):
+        if "hr data" not in data_types:
+            data_types.append("hr data")
+        facts["external_vendor_involved"] = True
+        facts["policy_area"] = "data_access"
+        facts["sensitive_data_involved"] = True
+
     facts["data_types"] = data_types
 
     if "external vendor" in text or ("vendor" in text and "share" in text):
@@ -290,6 +382,11 @@ def filter_redundant_open_questions(
         lowered = question.lower()
         if "manager approval" in lowered and scenario_facts.get("approval_status") == "approved":
             continue
+        if "manager approval" in lowered and any(
+            phrase in query_text
+            for phrase in ("already have manager approval", "manager approved", "already approved")
+        ):
+            continue
         if "cash" in lowered:
             if scenario_facts.get("cash_gift") is True:
                 continue
@@ -336,8 +433,11 @@ def missing_info_tool(
         blocking.append("relevant policy evidence")
 
     if policy_area == "reimbursement":
-        if scenario_facts.get("amount") is None:
+        amount_optional = _amount_not_required_for_decision(scenario_facts)
+        if scenario_facts.get("amount") is None and not amount_optional:
             blocking.append("amount")
+        elif scenario_facts.get("amount") is None and amount_optional:
+            open_questions.append("expense amount")
         docs = scenario_facts.get("documentation_provided", [])
         if "receipt mentioned" not in docs and "lost receipt" not in docs:
             if "receipt" not in text and "lost" not in text:
@@ -356,7 +456,11 @@ def missing_info_tool(
 
     elif policy_area == "gifts_hospitality":
         if scenario_facts.get("gift_value") is None and scenario_facts.get("amount") is None:
-            blocking.append("gift value")
+            if scenario_facts.get("vendor_hospitality"):
+                open_questions.append("hospitality value")
+            else:
+                blocking.append("gift value")
+                open_questions.append("gift value")
         if scenario_facts.get("cash_gift") is not True and "cash" not in text:
             open_questions.append("whether the gift is cash or cash equivalent")
         elif scenario_facts.get("cash_gift") is False:
@@ -379,7 +483,16 @@ def missing_info_tool(
             open_questions.append("cross-border approval details")
 
     elif policy_area == "data_access":
-        if not scenario_facts.get("data_types"):
+        if not scenario_facts.get("data_types") and not any(
+            scenario_facts.get(flag)
+            for flag in (
+                "public_link_sharing",
+                "personal_channel",
+                "public_ai_tool",
+                "data_already_shared",
+                "production_access",
+            )
+        ):
             blocking.append("type of data")
         if scenario_facts.get("external_vendor_involved") and scenario_facts.get(
             "approval_status"

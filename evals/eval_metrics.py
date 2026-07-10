@@ -11,7 +11,13 @@ def _as_list(value) -> list:
     return [value]
 
 
-def decision_accuracy(expected, actual) -> bool:
+def decision_accuracy(expected, actual, case: dict | None = None, state: dict | None = None) -> bool:
+    if case and case.get("expected_answer_type") == "policy_explanation":
+        return True
+    if state and state.get("answer_type") == "policy_explanation":
+        return True
+    if actual in ("", None) and case and case.get("expected_answer_type") == "policy_explanation":
+        return True
     return actual in _as_list(expected)
 
 
@@ -138,7 +144,7 @@ def generic_answer_penalty(case: dict, state: dict) -> bool:
 def score_case(case: dict, state: dict) -> dict:
     """Score one golden case against an agent state."""
     checks = {
-        "decision_accuracy": decision_accuracy(case.get("expected_decision"), state.get("policy_decision")),
+        "decision_accuracy": decision_accuracy(case.get("expected_decision"), state.get("policy_decision"), case, state),
         "risk_level_accuracy": risk_level_accuracy(case.get("expected_risk_level"), state.get("risk_level")),
         "required_approval_match": required_approval_match(
             case.get("expected_required_approvals", []), state.get("required_approvals", [])

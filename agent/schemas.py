@@ -43,6 +43,19 @@ class ScenarioFacts(TypedDict, total=False):
     cash_gift: bool
     data_types: list[str]
     external_vendor_involved: bool
+    submission_days_late: int | None
+    duplicate_claim: bool
+    personal_expense: bool
+    data_already_shared: bool
+    public_ai_tool: bool
+    personal_channel: bool
+    public_link_sharing: bool
+    cumulative_gifts: bool
+    vendor_contract_renewal: bool
+    active_rfp: bool
+    personal_gift: bool
+    vendor_hospitality: bool
+    production_access: bool
     raw_query: str
 
 
@@ -104,6 +117,19 @@ def empty_scenario_facts(raw_query: str) -> ScenarioFacts:
         "cash_gift": False,
         "data_types": [],
         "external_vendor_involved": False,
+        "submission_days_late": None,
+        "duplicate_claim": False,
+        "personal_expense": False,
+        "data_already_shared": False,
+        "public_ai_tool": False,
+        "personal_channel": False,
+        "public_link_sharing": False,
+        "cumulative_gifts": False,
+        "vendor_contract_renewal": False,
+        "active_rfp": False,
+        "personal_gift": False,
+        "vendor_hospitality": False,
+        "production_access": False,
         "raw_query": raw_query,
     }
 

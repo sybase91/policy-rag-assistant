@@ -107,7 +107,8 @@
     "expected_required_approvals": [],
     "must_cite_sections": ["TE-004"],
     "expected_open_questions": [],
-    "notes": "General policy question."
+    "notes": "General policy question.",
+    "expected_answer_type": "policy_explanation"
   },
   {
     "id": "gift_003",

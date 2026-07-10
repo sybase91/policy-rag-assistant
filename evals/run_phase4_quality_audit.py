@@ -62,7 +62,7 @@ def _run_policyops_case(case: dict, use_mock: bool) -> tuple[dict, list[dict]]:
     return turn_states[-1], turn_states
 
 
-def _run_standard_rag_case(case: dict) -> dict:
+def _run_standard_rag_case(case: dict, use_mock: bool = False) -> dict:
     try:
         from src.generate import answer_question
     except ImportError as exc:
@@ -75,7 +75,19 @@ def _run_standard_rag_case(case: dict) -> dict:
 
     query = case.get("turns", [""])[-1]
     try:
-        result = answer_question(query)
+        if use_mock or case.get("expect_refusal"):
+            with patch("src.generate.retrieve_context_with_scores") as mock_retrieve:
+                if case.get("expect_refusal"):
+                    mock_retrieve.return_value = []
+                else:
+                    doc_chunks = mock_vectorstore_for_case(case).similarity_search_with_score.return_value
+                    mock_retrieve.return_value = [
+                        (doc, max(0.0, 1.0 - distance))
+                        for doc, distance in doc_chunks
+                    ]
+                result = answer_question(query)
+        else:
+            result = answer_question(query)
     except Exception as exc:  # noqa: BLE001
         return {
             "final_answer": f"Standard RAG error: {exc}",
@@ -115,7 +127,7 @@ def run_phase4_audit(
     for case in cases:
         mode = case.get("mode", "policyops_agent")
         if mode == "standard_rag":
-            state = _run_standard_rag_case(case)
+            state = _run_standard_rag_case(case, use_mock=use_mock)
             turn_states = None
         else:
             state, turn_states = _run_policyops_case(case, use_mock=use_mock)

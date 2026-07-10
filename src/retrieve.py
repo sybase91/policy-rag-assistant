@@ -64,6 +64,22 @@ def get_vectorstore() -> Chroma:
     )
 
 
+OUT_OF_CORPUS_TOPICS = ("refund", "parental leave", "bonus", "maternity leave", "paternity leave")
+ACME_POLICY_SOURCES = ("acme_", "reimbursement", "travel_expense")
+SIMILARITY_THRESHOLD = 0.35
+
+
+def _distance_to_similarity(distance: float) -> float:
+    return round(max(0.0, min(1.0, 1.0 - float(distance))), 2)
+
+
+def retrieve_context_with_scores(question: str, k: int = 5) -> list[tuple[Document, float]]:
+    """Search the vector store and return documents with similarity scores."""
+    vectorstore = get_vectorstore()
+    results = vectorstore.similarity_search_with_score(question, k=k)
+    return [(doc, _distance_to_similarity(score)) for doc, score in results]
+
+
 def retrieve_context(question: str, k: int = 5) -> list[Document]:
     """Search the vector store for the top-k chunks most relevant to the question.
 

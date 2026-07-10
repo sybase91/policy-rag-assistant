@@ -12,10 +12,12 @@ CATEGORY_MOCK_SECTIONS: dict[str, list[str]] = {
     "reimbursement": ["RE-004", "RE-005", "TE-030", "AM-009"],
     "data_access": ["DA-003", "DA-004", "DA-007", "DA-018", "AM-012"],
     "multi_turn_memory": ["GH-003", "GH-016", "RW-003", "RW-005", "TE-004", "TE-006"],
-    "ambiguity": ["AM-001"],
+    "ambiguity": ["AM-001", "RE-001", "TE-001"],
+    "general": ["AM-001", "RE-001", "TE-001", "GH-001"],
     "contradiction_correction": ["GH-003", "RW-003", "DA-003"],
     "prompt_injection": ["GH-003", "DA-003"],
     "retrieval_boundary": [],
+    "standard_rag": [],
 }
 
 
@@ -61,7 +63,11 @@ def mock_vectorstore_for_case(case: dict) -> MagicMock:
     """Build a mock vectorstore from golden or phase4 case fields."""
     sections = case.get("mock_sections")
     if sections is None:
-        sections = case.get("expected_sections_any") or case.get("must_cite_sections")
+        sections = case.get("expected_sections_any")
+    if sections is None:
+        must_cite = case.get("must_cite_sections")
+        if must_cite:
+            sections = must_cite
     if sections is None:
         sections = CATEGORY_MOCK_SECTIONS.get(case.get("category", ""), ["GH-003"])
     if case.get("category") == "retrieval_boundary":

@@ -78,6 +78,100 @@ def evaluate_reimbursement_case(
             "decision_factors": {"policy_area": "reimbursement"},
         }
 
+    if scenario_facts.get("duplicate_claim"):
+        return {
+            "decision": "Not allowed",
+            "risk_level": "High",
+            "confidence": 0.85,
+            "rationale_bullets": _rules_or_default(
+                extracted_policy_rules,
+                scenario_facts,
+                ["RE-011 says duplicate reimbursement claims are not allowed."],
+            ),
+            "required_approvals": [],
+            "policy_basis": select_rules_for_scenario(extracted_policy_rules or [], scenario_facts),
+            "decision_factors": {"policy_area": "reimbursement", "duplicate_claim": True},
+        }
+
+    if scenario_facts.get("personal_expense"):
+        return {
+            "decision": "Not allowed",
+            "risk_level": "High",
+            "confidence": 0.84,
+            "rationale_bullets": _rules_or_default(
+                extracted_policy_rules,
+                scenario_facts,
+                ["RE-015 says personal purchases are not reimbursable."],
+            ),
+            "required_approvals": [],
+            "policy_basis": select_rules_for_scenario(extracted_policy_rules or [], scenario_facts),
+            "decision_factors": {"policy_area": "reimbursement", "personal_expense": True},
+        }
+
+    days_late = scenario_facts.get("submission_days_late")
+    if isinstance(days_late, int):
+        if days_late > 90:
+            return {
+                "decision": "Not allowed",
+                "risk_level": "High",
+                "confidence": 0.8,
+                "rationale_bullets": _rules_or_default(
+                    extracted_policy_rules,
+                    scenario_facts,
+                    ["RE-019 says claims submitted more than 90 days late require a Finance exception or are not allowed."],
+                ),
+                "required_approvals": ["Finance"],
+                "policy_basis": select_rules_for_scenario(extracted_policy_rules or [], scenario_facts),
+                "decision_factors": {"policy_area": "reimbursement", "submission_days_late": days_late},
+            }
+        if days_late >= 61:
+            return {
+                "decision": "Needs approval",
+                "risk_level": "Medium",
+                "confidence": 0.78,
+                "rationale_bullets": _rules_or_default(
+                    extracted_policy_rules,
+                    scenario_facts,
+                    ["RE-019 says claims submitted 61-90 days late require manager approval."],
+                ),
+                "required_approvals": ["Manager"],
+                "policy_basis": select_rules_for_scenario(extracted_policy_rules or [], scenario_facts),
+                "decision_factors": {"policy_area": "reimbursement", "submission_days_late": days_late},
+            }
+
+    if scenario_facts.get("alcohol_mentioned") and amount is None:
+        return {
+            "decision": "Needs approval",
+            "risk_level": "Medium",
+            "confidence": 0.76,
+            "rationale_bullets": _rules_or_default(
+                extracted_policy_rules,
+                scenario_facts,
+                ["TE-006 says alcohol requires Finance pre-approval and separate itemization."],
+            ),
+            "required_approvals": ["Finance"],
+            "policy_basis": select_rules_for_scenario(extracted_policy_rules or [], scenario_facts),
+            "decision_factors": {"policy_area": "reimbursement", "alcohol_mentioned": True},
+        }
+
+    if scenario_facts.get("payment_method") == "personal card" and scenario_facts.get(
+        "expense_type"
+    ) in {"client dinner", "meal", "client meal"}:
+        if amount is None or (isinstance(amount, (int, float)) and amount <= 10000):
+            return {
+                "decision": "Allowed",
+                "risk_level": "Low",
+                "confidence": 0.72,
+                "rationale_bullets": _rules_or_default(
+                    extracted_policy_rules,
+                    scenario_facts,
+                    ["TE-021 says client meals paid on a personal card may be reimbursed with an itemized receipt."],
+                ),
+                "required_approvals": [],
+                "policy_basis": select_rules_for_scenario(extracted_policy_rules or [], scenario_facts),
+                "decision_factors": {"policy_area": "reimbursement", "payment_method": "personal card"},
+            }
+
     fallback: list[str] = []
     if currency == "INR" and isinstance(amount, (int, float)):
         if amount > 25000:
@@ -185,11 +279,32 @@ def evaluate_gift_case(
             "rationale_bullets": _rules_or_default(
                 extracted_policy_rules,
                 scenario_facts,
-                ["GH-006 says cumulative gifts above INR 15,000 from the same counterparty require Compliance review."],
+                [
+                    "GH-006 says cumulative gifts above INR 15,000 from the same counterparty require Compliance review.",
+                    "Cumulative gift totals must be tracked across the quarter.",
+                ],
             ),
             "required_approvals": ["Compliance"],
             "policy_basis": select_rules_for_scenario(extracted_policy_rules or [], scenario_facts),
             "decision_factors": {"policy_area": "gifts_hospitality", "cumulative_gifts": True},
+        }
+
+    if scenario_facts.get("vendor_hospitality"):
+        return {
+            "decision": "Needs approval",
+            "risk_level": "Medium",
+            "confidence": 0.74,
+            "rationale_bullets": _rules_or_default(
+                extracted_policy_rules,
+                scenario_facts,
+                [
+                    "GH-018 says vendor hospitality and entertainment require prior approval.",
+                    "GH-009 says tickets and event hospitality must be recorded and approved before acceptance.",
+                ],
+            ),
+            "required_approvals": ["Manager", "Compliance"],
+            "policy_basis": select_rules_for_scenario(extracted_policy_rules or [], scenario_facts),
+            "decision_factors": {"policy_area": "gifts_hospitality", "vendor_hospitality": True},
         }
 
     fallback: list[str] = []
@@ -313,12 +428,123 @@ def evaluate_data_access_case(
     open_questions: list[str] | None = None,
     extracted_policy_rules: list[dict] | None = None,
 ) -> dict:
+    data_types = scenario_facts.get("data_types", [])
+
+    if scenario_facts.get("data_already_shared"):
+        return {
+            "decision": "Escalate",
+            "risk_level": "High",
+            "confidence": 0.86,
+            "rationale_bullets": _rules_or_default(
+                extracted_policy_rules,
+                scenario_facts,
+                ["DA-008 says data already shared without approval requires immediate InfoSec notification and escalation."],
+            ),
+            "required_approvals": ["Information Security", "Compliance"],
+            "policy_basis": select_rules_for_scenario(extracted_policy_rules or [], scenario_facts),
+            "decision_factors": {"policy_area": "data_access", "data_already_shared": True},
+        }
+
+    if "hr data" in data_types and scenario_facts.get("external_vendor_involved"):
+        return {
+            "decision": "Escalate",
+            "risk_level": "High",
+            "confidence": 0.84,
+            "rationale_bullets": _rules_or_default(
+                extracted_policy_rules,
+                scenario_facts,
+                ["DA-018 says HR data external sharing with vendors requires HR, Legal, and InfoSec escalation."],
+            ),
+            "required_approvals": ["HR", "Legal", "Information Security"],
+            "policy_basis": select_rules_for_scenario(extracted_policy_rules or [], scenario_facts),
+            "decision_factors": {"policy_area": "data_access", "hr_vendor": True},
+        }
+
+    if "finance data" in data_types:
+        return {
+            "decision": "Needs approval",
+            "risk_level": "High",
+            "confidence": 0.78,
+            "rationale_bullets": _rules_or_default(
+                extracted_policy_rules,
+                scenario_facts,
+                ["DA-019 says finance data access requires Finance owner and Information Security approval."],
+            ),
+            "required_approvals": ["Finance", "Information Security"],
+            "policy_basis": select_rules_for_scenario(extracted_policy_rules or [], scenario_facts),
+            "decision_factors": {"policy_area": "data_access", "finance_data": True},
+        }
+
+    if scenario_facts.get("public_ai_tool") and (
+        scenario_facts.get("sensitive_data_involved")
+        or "customer data" in data_types
+    ):
+        return {
+            "decision": "Not allowed",
+            "risk_level": "High",
+            "confidence": 0.83,
+            "rationale_bullets": _rules_or_default(
+                extracted_policy_rules,
+                scenario_facts,
+                ["DA-023 says customer or sensitive data must not be entered into public AI tools."],
+            ),
+            "required_approvals": ["Information Security"],
+            "policy_basis": select_rules_for_scenario(extracted_policy_rules or [], scenario_facts),
+            "decision_factors": {"policy_area": "data_access", "public_ai_tool": True},
+        }
+
+    if scenario_facts.get("personal_channel") and scenario_facts.get("sensitive_data_involved"):
+        return {
+            "decision": "Not allowed",
+            "risk_level": "High",
+            "confidence": 0.82,
+            "rationale_bullets": _rules_or_default(
+                extracted_policy_rules,
+                scenario_facts,
+                ["DA-009 says confidential data must not be shared through personal email channels."],
+            ),
+            "required_approvals": ["Information Security"],
+            "policy_basis": select_rules_for_scenario(extracted_policy_rules or [], scenario_facts),
+            "decision_factors": {"policy_area": "data_access", "personal_channel": True},
+        }
+
+    if scenario_facts.get("public_link_sharing") and scenario_facts.get("sensitive_data_involved"):
+        return {
+            "decision": "Not allowed",
+            "risk_level": "High",
+            "confidence": 0.81,
+            "rationale_bullets": _rules_or_default(
+                extracted_policy_rules,
+                scenario_facts,
+                ["DA-009 and DA-007 say confidential data must not be shared via public links without security controls."],
+            ),
+            "required_approvals": ["Information Security"],
+            "policy_basis": select_rules_for_scenario(extracted_policy_rules or [], scenario_facts),
+            "decision_factors": {"policy_area": "data_access", "public_link_sharing": True},
+        }
+
+    if scenario_facts.get("production_access") and scenario_facts.get("external_vendor_involved"):
+        return {
+            "decision": "Needs approval",
+            "risk_level": "High",
+            "confidence": 0.77,
+            "rationale_bullets": _rules_or_default(
+                extracted_policy_rules,
+                scenario_facts,
+                [
+                    "DA-007 says vendor access to production systems requires Information Security approval.",
+                    "The system owner must approve vendor production or log access.",
+                ],
+            ),
+            "required_approvals": ["Information Security", "System Owner"],
+            "policy_basis": select_rules_for_scenario(extracted_policy_rules or [], scenario_facts),
+            "decision_factors": {"policy_area": "data_access", "production_access": True},
+        }
+
     decision = "Needs approval"
     risk_level = "High"
     approvals = ["Information Security"]
     fallback = ["DA-007 says external sharing requires business justification and security review."]
-
-    data_types = scenario_facts.get("data_types", [])
     if "customer data" in data_types:
         approvals.extend(["Legal"])
         fallback.append(
@@ -358,6 +584,36 @@ def evaluate_travel_case(
     open_questions: list[str] | None = None,
     extracted_policy_rules: list[dict] | None = None,
 ) -> dict:
+    if scenario_facts.get("alcohol_mentioned"):
+        return {
+            "decision": "Needs approval",
+            "risk_level": "Medium",
+            "confidence": 0.76,
+            "rationale_bullets": _rules_or_default(
+                extracted_policy_rules,
+                scenario_facts,
+                ["TE-006 says alcohol requires Finance pre-approval and separate itemization."],
+            ),
+            "required_approvals": ["Finance"],
+            "policy_basis": select_rules_for_scenario(extracted_policy_rules or [], scenario_facts),
+            "decision_factors": {"policy_area": "travel_expense", "alcohol_mentioned": True},
+        }
+
+    if scenario_facts.get("payment_method") == "personal card":
+        return {
+            "decision": "Allowed",
+            "risk_level": "Low",
+            "confidence": 0.72,
+            "rationale_bullets": _rules_or_default(
+                extracted_policy_rules,
+                scenario_facts,
+                ["TE-021 says travel expenses paid on a personal card may be reimbursed with proper receipts."],
+            ),
+            "required_approvals": [],
+            "policy_basis": select_rules_for_scenario(extracted_policy_rules or [], scenario_facts),
+            "decision_factors": {"policy_area": "travel_expense", "payment_method": "personal card"},
+        }
+
     decision = "Needs approval"
     risk_level = "Medium"
     approvals = ["Manager"]
@@ -382,6 +638,23 @@ def evaluate_travel_case(
     }
 
 
+def _scenario_flags_present(scenario_facts: dict) -> bool:
+    """Return True when scenario-specific flags exist without a policy_area."""
+    return bool(
+        scenario_facts.get("personal_expense")
+        or scenario_facts.get("duplicate_claim")
+        or scenario_facts.get("submission_days_late")
+        or scenario_facts.get("public_ai_tool")
+        or scenario_facts.get("personal_channel")
+        or scenario_facts.get("public_link_sharing")
+        or scenario_facts.get("data_already_shared")
+        or scenario_facts.get("vendor_hospitality")
+        or scenario_facts.get("production_access")
+        or scenario_facts.get("cash_gift")
+        or scenario_facts.get("alcohol_mentioned")
+    )
+
+
 def evaluate_general_policy_case(
     scenario_facts: dict,
     retrieved_chunks: list[dict],
@@ -397,6 +670,36 @@ def evaluate_general_policy_case(
             "rationale_bullets": ["No relevant policy evidence was retrieved."],
             "required_approvals": [],
             "policy_basis": [],
+            "decision_factors": {"policy_area": scenario_facts.get("policy_area", "general")},
+        }
+
+    if _scenario_flags_present(scenario_facts):
+        if scenario_facts.get("policy_area") in {"", "general"}:
+            routed = dict(scenario_facts)
+            if scenario_facts.get("public_ai_tool") or scenario_facts.get("personal_channel"):
+                routed["policy_area"] = "data_access"
+                return evaluate_data_access_case(
+                    routed, retrieved_chunks, blocking_missing_info, open_questions, extracted_policy_rules
+                )
+            if scenario_facts.get("vendor_hospitality") or scenario_facts.get("cash_gift"):
+                routed["policy_area"] = "gifts_hospitality"
+                return evaluate_gift_case(
+                    routed, retrieved_chunks, blocking_missing_info, open_questions, extracted_policy_rules
+                )
+            if scenario_facts.get("personal_expense") or scenario_facts.get("duplicate_claim"):
+                routed["policy_area"] = "reimbursement"
+                return evaluate_reimbursement_case(
+                    routed, retrieved_chunks, blocking_missing_info, open_questions, extracted_policy_rules
+                )
+        return {
+            "decision": "Needs more information",
+            "risk_level": "Medium",
+            "confidence": 0.45,
+            "rationale_bullets": [
+                "Additional scenario details are required before a policy decision can be made."
+            ],
+            "required_approvals": [],
+            "policy_basis": select_rules_for_scenario(extracted_policy_rules or [], scenario_facts),
             "decision_factors": {"policy_area": scenario_facts.get("policy_area", "general")},
         }
 

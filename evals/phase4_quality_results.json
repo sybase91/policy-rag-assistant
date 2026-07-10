@@ -1,21 +1,16 @@
 {
   "metrics": {
     "total_cases": 75,
-    "passed": 61,
-    "failed": 14,
-    "pass_rate": 0.813,
-    "average_score": 93.9,
-    "top_failure_mode": "wrong_decision",
+    "passed": 75,
+    "failed": 0,
+    "pass_rate": 1.0,
+    "average_score": 99.2,
+    "top_failure_mode": "low_grounding",
     "failure_mode_counts": {
-      "wrong_decision": 13,
-      "low_grounding": 3,
-      "redundant_open_question": 2,
-      "wrong_answer_type": 1,
-      "missing_expected_section": 1,
-      "missing_required_approval": 1,
-      "boundary_failure": 1
+      "low_grounding": 4,
+      "missing_expected_section": 1
     },
-    "wrong_answer_type_count": 1,
+    "wrong_answer_type_count": 0,
     "missing_citations_count": 1
   },
   "config": {
@@ -301,11 +296,9 @@
       ],
       "query": "What is the approval matrix?",
       "score": {
-        "score": 80,
+        "score": 100,
         "passed": true,
-        "failure_modes": [
-          "wrong_answer_type"
-        ],
+        "failure_modes": [],
         "expected": {
           "answer_type": "policy_explanation",
           "decision": null,
@@ -315,8 +308,8 @@
           "approvals": null
         },
         "actual": {
-          "answer_type": "scenario_decision",
-          "decision": "Allowed",
+          "answer_type": "policy_explanation",
+          "decision": "",
           "sections": [
             "AM-001",
             "AM-002",
@@ -328,16 +321,14 @@
           "open_questions": []
         },
         "missing_concepts": [],
-        "answer_excerpt": "Decision: Allowed\n\nRisk level: Low\nConfidence: 50%\n\nShort answer:\nBased on the facts provided, this request appears permitted under the retrieved policy sections, subject to standard documentation requirements.\n\nWhy this decision:\n- AM-001 says AM-001 Purpose This matrix defines approval authority across Finance, HR, Legal, Compliance, Information Security, and business management for common workplace requests.\n- AM-012 says AM-012 Data Access Approval Matrix | Request type | Approval required |",
-        "suggested_fixes": [
-          "Improve answer_routing.py patterns and ambiguity detection."
-        ]
+        "answer_excerpt": "Topic: Workplace policy\n\nConfidence: 75%\n\nSummary:\n- AM-001 says AM-001 Purpose This matrix defines approval authority across Finance, HR, Legal, Compliance, Information Security, and business management for common workplace requests.\n- AM-012 says AM-012 Data Access Approval Matrix | Request type | Approval required | |--------------|-------------------| | Internal data | Manager or data owner | | Confidential data | Data owner + Manager | | Restricted data | Data owner + InfoSec | | Customer d",
+        "suggested_fixes": []
       },
       "state_summary": {
-        "answer_type": "scenario_decision",
-        "policy_decision": "Allowed",
+        "answer_type": "policy_explanation",
+        "policy_decision": "",
         "risk_level": "Low",
-        "confidence": 0.5,
+        "confidence": 0.75,
         "open_questions": [],
         "required_approvals": [],
         "cited_sections": [
@@ -723,6 +714,7 @@
             "Legal"
           ],
           "open_questions": [
+            "gift value",
             "whether the gift is cash or cash equivalent"
           ]
         },
@@ -736,6 +728,7 @@
         "risk_level": "High",
         "confidence": 0.7,
         "open_questions": [
+          "gift value",
           "whether the gift is cash or cash equivalent"
         ],
         "required_approvals": [
@@ -834,11 +827,9 @@
       ],
       "query": "A vendor offered me tickets to a cricket match but they will not attend. Can I accept?",
       "score": {
-        "score": 75,
-        "passed": false,
-        "failure_modes": [
-          "wrong_decision"
-        ],
+        "score": 100,
+        "passed": true,
+        "failure_modes": [],
         "expected": {
           "answer_type": "scenario_decision",
           "decision": [
@@ -853,34 +844,46 @@
         },
         "actual": {
           "answer_type": "scenario_decision",
-          "decision": "Allowed",
+          "decision": "Needs approval",
           "sections": [
             "GH-010",
             "GH-016",
             "GH-020",
             "GH-025"
           ],
-          "approvals": [],
-          "open_questions": []
+          "approvals": [
+            "Manager",
+            "Compliance"
+          ],
+          "open_questions": [
+            "hospitality value",
+            "whether the gift is cash or cash equivalent",
+            "whether a public official is involved"
+          ]
         },
         "missing_concepts": [],
-        "answer_excerpt": "Decision: Allowed\n\nRisk level: Low\nConfidence: 48%\n\nShort answer:\nBased on the facts provided, this request appears permitted under the retrieved policy sections, subject to standard documentation requirements.\n\nWhy this decision:\n- GH-025 says Example: Sports tickets without vendor attendance Scenario: Vendor offers tickets but does not attend.\n- GH-016 says GH-016 Vendor and Client Gifts Vendor and client gifts create conflict-of-interest risk.\n- GH-010 says GH-010 Scope This policy applies to",
-        "suggested_fixes": [
-          "Ground decision_rules.py in extracted policy rules and corpus thresholds."
-        ]
+        "answer_excerpt": "Decision: Needs approval\n\nRisk level: Medium\nConfidence: 74%\n\nShort answer:\nYou can likely proceed only after the required approvals are in place. The policy evidence suggests approval is required, not an automatic rejection.\n\nWhy this decision:\n- GH-025 says Example: Sports tickets without vendor attendance Scenario: Vendor offers tickets but does not attend.\n- GH-016 says GH-016 Vendor and Client Gifts Vendor and client gifts create conflict-of-interest risk.\n- GH-010 says GH-010 Scope This po",
+        "suggested_fixes": []
       },
       "state_summary": {
         "answer_type": "scenario_decision",
-        "policy_decision": "Allowed",
-        "risk_level": "Low",
-        "confidence": 0.48,
-        "open_questions": [],
-        "required_approvals": [],
+        "policy_decision": "Needs approval",
+        "risk_level": "Medium",
+        "confidence": 0.74,
+        "open_questions": [
+          "hospitality value",
+          "whether the gift is cash or cash equivalent",
+          "whether a public official is involved"
+        ],
+        "required_approvals": [
+          "Manager",
+          "Compliance"
+        ],
         "cited_sections": [
           "GH-025",
+          "GH-010",
           "GH-016",
-          "GH-020",
-          "GH-010"
+          "GH-020"
         ],
         "retrieved_count": 5
       }
@@ -1164,11 +1167,9 @@
       ],
       "query": "I need to work remotely for 2 weeks, and I already have manager approval. Is that okay?",
       "score": {
-        "score": 88,
+        "score": 100,
         "passed": true,
-        "failure_modes": [
-          "redundant_open_question"
-        ],
+        "failure_modes": [],
         "expected": {
           "answer_type": "scenario_decision",
           "decision": [
@@ -1193,24 +1194,20 @@
             "Manager"
           ],
           "open_questions": [
-            "work location",
-            "manager approval"
+            "work location"
           ]
         },
         "missing_concepts": [],
-        "answer_excerpt": "Decision: Needs approval\n\nRisk level: Medium\nConfidence: 57%\n\nShort answer:\nYou can likely proceed only after the required approvals are in place. The policy evidence suggests approval is required, not an automatic rejection.\n\nWhy this decision:\n- RW-030 says RW-030 Policy Summary for Employees In summary: single-day remote work needs manager awareness; multi-day remote work needs documented approval; medical and cross-border cases need HR and additional review; all remote work must follow data ",
-        "suggested_fixes": [
-          "Tighten filter_redundant_open_questions in tools.py."
-        ]
+        "answer_excerpt": "Decision: Needs approval\n\nRisk level: Medium\nConfidence: 60%\n\nShort answer:\nYou can likely proceed only after the required approvals are in place. The policy evidence suggests approval is required, not an automatic rejection.\n\nWhy this decision:\n- RW-030 says RW-030 Policy Summary for Employees In summary: single-day remote work needs manager awareness; multi-day remote work needs documented approval; medical and cross-border cases need HR and additional review; all remote work must follow data ",
+        "suggested_fixes": []
       },
       "state_summary": {
         "answer_type": "scenario_decision",
         "policy_decision": "Needs approval",
         "risk_level": "Medium",
-        "confidence": 0.57,
+        "confidence": 0.6,
         "open_questions": [
-          "work location",
-          "manager approval"
+          "work location"
         ],
         "required_approvals": [
           "Manager"
@@ -1473,20 +1470,22 @@
             "Manager"
           ],
           "open_questions": [
+            "remote work duration",
             "work location",
             "manager approval"
           ]
         },
         "missing_concepts": [],
-        "answer_excerpt": "Decision: Needs approval\n\nRisk level: Medium\nConfidence: 47%\n\nShort answer:\nYou can likely proceed only after the required approvals are in place. The policy evidence suggests approval is required, not an automatic rejection.\n\nWhy this decision:\n- RW-030 says Example: Recurring Fridays remote Scenario: Employee wants every Friday remote.\n- RW-003 says RW-003 Extended Remote Work Remote work for more than 5 consecutive business days and up to 20 business days requires manager approval and a docum",
+        "answer_excerpt": "Decision: Needs approval\n\nRisk level: Medium\nConfidence: 44%\n\nShort answer:\nYou can likely proceed only after the required approvals are in place. The policy evidence suggests approval is required, not an automatic rejection.\n\nWhy this decision:\n- RW-030 says Example: Recurring Fridays remote Scenario: Employee wants every Friday remote.\n- RW-003 says RW-003 Extended Remote Work Remote work for more than 5 consecutive business days and up to 20 business days requires manager approval and a docum",
         "suggested_fixes": []
       },
       "state_summary": {
         "answer_type": "scenario_decision",
         "policy_decision": "Needs approval",
         "risk_level": "Medium",
-        "confidence": 0.47,
+        "confidence": 0.44,
         "open_questions": [
+          "remote work duration",
           "work location",
           "manager approval"
         ],
@@ -1725,11 +1724,9 @@
       ],
       "query": "Can I reimburse alcohol from a client dinner?",
       "score": {
-        "score": 75,
-        "passed": false,
-        "failure_modes": [
-          "wrong_decision"
-        ],
+        "score": 100,
+        "passed": true,
+        "failure_modes": [],
         "expected": {
           "answer_type": "scenario_decision",
           "decision": [
@@ -1743,7 +1740,7 @@
         },
         "actual": {
           "answer_type": "scenario_decision",
-          "decision": "Needs more information",
+          "decision": "Needs approval",
           "sections": [
             "AM-019",
             "RE-020",
@@ -1751,40 +1748,42 @@
             "TE-006",
             "TE-030"
           ],
-          "approvals": [],
+          "approvals": [
+            "Finance"
+          ],
           "open_questions": [
+            "expense amount",
             "itemized receipt",
             "business purpose",
             "attendee names",
             "approval status"
           ]
         },
-        "missing_concepts": [
-          "Finance"
-        ],
-        "answer_excerpt": "Decision: Needs more information\n\nRisk level: Medium\nConfidence: 0%\n\nShort answer:\nA provisional decision cannot be made yet because essential facts or policy evidence are still missing.\n\nWhy this decision:\n- Essential facts or policy evidence are still missing for a confident decision.\n\nOpen questions:\n- itemized receipt\n- business purpose\n- attendee names\n- approval status\n\nRecommended next steps:\n1. Provide amount before submitting.\n2. Confirm itemized receipt.\n3. Confirm business purpose.\n4.",
-        "suggested_fixes": [
-          "Ground decision_rules.py in extracted policy rules and corpus thresholds."
-        ]
+        "missing_concepts": [],
+        "answer_excerpt": "Decision: Needs approval\n\nRisk level: Medium\nConfidence: 76%\n\nShort answer:\nYou can likely proceed only after the required approvals are in place. The policy evidence suggests approval is required, not an automatic rejection.\n\nWhy this decision:\n- TE-030 says TE-030 Policy Summary In summary: book through approved channels, document business purpose, obtain meal and upgrade approvals per thresholds, and itemize alcohol separately.\n- TE-006 says TE-006 Alcohol on Expense Claims Alcohol is not rei",
+        "suggested_fixes": []
       },
       "state_summary": {
         "answer_type": "scenario_decision",
-        "policy_decision": "Needs more information",
+        "policy_decision": "Needs approval",
         "risk_level": "Medium",
-        "confidence": 0.0,
+        "confidence": 0.76,
         "open_questions": [
+          "expense amount",
           "itemized receipt",
           "business purpose",
           "attendee names",
           "approval status"
         ],
-        "required_approvals": [],
+        "required_approvals": [
+          "Finance"
+        ],
         "cited_sections": [
           "TE-006",
           "TE-030",
+          "AM-019",
           "RE-025",
-          "RE-020",
-          "AM-019"
+          "RE-020"
         ],
         "retrieved_count": 5
       }
@@ -2035,11 +2034,9 @@
       ],
       "query": "I paid for a client meal with my personal card. Is that okay?",
       "score": {
-        "score": 75,
-        "passed": false,
-        "failure_modes": [
-          "wrong_decision"
-        ],
+        "score": 100,
+        "passed": true,
+        "failure_modes": [],
         "expected": {
           "answer_type": "scenario_decision",
           "decision": [
@@ -2054,7 +2051,7 @@
         },
         "actual": {
           "answer_type": "scenario_decision",
-          "decision": "Needs more information",
+          "decision": "Allowed",
           "sections": [
             "AM-019",
             "GH-025",
@@ -2064,6 +2061,7 @@
           ],
           "approvals": [],
           "open_questions": [
+            "expense amount",
             "itemized receipt",
             "business purpose",
             "attendee names",
@@ -2072,17 +2070,16 @@
           ]
         },
         "missing_concepts": [],
-        "answer_excerpt": "Decision: Needs more information\n\nRisk level: Medium\nConfidence: 0%\n\nShort answer:\nA provisional decision cannot be made yet because essential facts or policy evidence are still missing.\n\nWhy this decision:\n- Essential facts or policy evidence are still missing for a confident decision.\n\nOpen questions:\n- itemized receipt\n- business purpose\n- attendee names\n- approval status\n- whether alcohol was included\n\nRecommended next steps:\n1. Provide amount before submitting.\n2. Confirm itemized receipt.\n",
-        "suggested_fixes": [
-          "Ground decision_rules.py in extracted policy rules and corpus thresholds."
-        ]
+        "answer_excerpt": "Decision: Allowed\n\nRisk level: Low\nConfidence: 72%\n\nShort answer:\nBased on the facts provided, this request appears permitted under the retrieved policy sections, subject to standard documentation requirements.\n\nWhy this decision:\n- TE-030 says TE-030 Policy Summary In summary: book through approved channels, document business purpose, obtain meal and upgrade approvals per thresholds, and itemize alcohol separately.\n- TE-004 says TE-004 Client Meal Thresholds | Client meal amount (INR) | Approva",
+        "suggested_fixes": []
       },
       "state_summary": {
         "answer_type": "scenario_decision",
-        "policy_decision": "Needs more information",
-        "risk_level": "Medium",
-        "confidence": 0.0,
+        "policy_decision": "Allowed",
+        "risk_level": "Low",
+        "confidence": 0.72,
         "open_questions": [
+          "expense amount",
           "itemized receipt",
           "business purpose",
           "attendee names",
@@ -2311,7 +2308,7 @@
         },
         "actual": {
           "answer_type": "scenario_decision",
-          "decision": "Allowed",
+          "decision": "Needs approval",
           "sections": [
             "AM-009",
             "RE-006",
@@ -2320,18 +2317,28 @@
             "RE-025"
           ],
           "approvals": [],
-          "open_questions": []
+          "open_questions": [
+            "expense amount",
+            "itemized receipt",
+            "business purpose",
+            "approval status"
+          ]
         },
         "missing_concepts": [],
-        "answer_excerpt": "Decision: Allowed\n\nRisk level: Low\nConfidence: 50%\n\nShort answer:\nBased on the facts provided, this request appears permitted under the retrieved policy sections, subject to standard documentation requirements.\n\nWhy this decision:\n- AM-009 says AM-009 Reimbursement Exception Matrix | Exception type | Approval required | |----------------|-------------------| | Missing receipt under INR 2,000 | Manager | | Missing receipt INR 2,001\u201310,000 | Manager + Finance | | Missing receipt above INR 10,000 |",
+        "answer_excerpt": "Decision: Needs approval\n\nRisk level: Medium\nConfidence: 46%\n\nShort answer:\nYou can likely proceed only after the required approvals are in place. The policy evidence suggests approval is required, not an automatic rejection.\n\nWhy this decision:\n- RE-006 says RE-006 Submission Timeline Standard submission deadline is 30 days from expense date.\n- RE-025 says Example: Late claim after 45 days Scenario: Employee submits a claim 45 days after expense date.\n- RE-019 says RE-019 Late Submission Bands ",
         "suggested_fixes": []
       },
       "state_summary": {
         "answer_type": "scenario_decision",
-        "policy_decision": "Allowed",
-        "risk_level": "Low",
-        "confidence": 0.5,
-        "open_questions": [],
+        "policy_decision": "Needs approval",
+        "risk_level": "Medium",
+        "confidence": 0.46,
+        "open_questions": [
+          "expense amount",
+          "itemized receipt",
+          "business purpose",
+          "approval status"
+        ],
         "required_approvals": [],
         "cited_sections": [
           "RE-006",
@@ -2352,11 +2359,9 @@
       ],
       "query": "I submitted an expense 100 days late. Can I still claim it?",
       "score": {
-        "score": 75,
-        "passed": false,
-        "failure_modes": [
-          "wrong_decision"
-        ],
+        "score": 100,
+        "passed": true,
+        "failure_modes": [],
         "expected": {
           "answer_type": "scenario_decision",
           "decision": [
@@ -2371,7 +2376,7 @@
         },
         "actual": {
           "answer_type": "scenario_decision",
-          "decision": "Allowed",
+          "decision": "Not allowed",
           "sections": [
             "AM-009",
             "RE-006",
@@ -2379,22 +2384,34 @@
             "RE-019",
             "RE-025"
           ],
-          "approvals": [],
-          "open_questions": []
+          "approvals": [
+            "Finance"
+          ],
+          "open_questions": [
+            "expense amount",
+            "itemized receipt",
+            "business purpose",
+            "approval status"
+          ]
         },
         "missing_concepts": [],
-        "answer_excerpt": "Decision: Allowed\n\nRisk level: Low\nConfidence: 50%\n\nShort answer:\nBased on the facts provided, this request appears permitted under the retrieved policy sections, subject to standard documentation requirements.\n\nWhy this decision:\n- AM-009 says AM-009 Reimbursement Exception Matrix | Exception type | Approval required | |----------------|-------------------| | Missing receipt under INR 2,000 | Manager | | Missing receipt INR 2,001\u201310,000 | Manager + Finance | | Missing receipt above INR 10,000 |",
-        "suggested_fixes": [
-          "Ground decision_rules.py in extracted policy rules and corpus thresholds."
-        ]
+        "answer_excerpt": "Decision: Not allowed\n\nRisk level: High\nConfidence: 80%\n\nShort answer:\nThe retrieved policy sections indicate this request should not proceed without an explicit exception from the appropriate governance team.\n\nWhy this decision:\n- RE-025 says Example: Late claim after 45 days Scenario: Employee submits a claim 45 days after expense date.\n- RE-006 says RE-006 Submission Timeline Standard submission deadline is 30 days from expense date.\n- RE-019 says RE-019 Late Submission Bands Claims submitted",
+        "suggested_fixes": []
       },
       "state_summary": {
         "answer_type": "scenario_decision",
-        "policy_decision": "Allowed",
-        "risk_level": "Low",
-        "confidence": 0.5,
-        "open_questions": [],
-        "required_approvals": [],
+        "policy_decision": "Not allowed",
+        "risk_level": "High",
+        "confidence": 0.8,
+        "open_questions": [
+          "expense amount",
+          "itemized receipt",
+          "business purpose",
+          "approval status"
+        ],
+        "required_approvals": [
+          "Finance"
+        ],
         "cited_sections": [
           "RE-025",
           "RE-006",
@@ -2414,11 +2431,9 @@
       ],
       "query": "Can I submit the same taxi expense twice if the first one was rejected?",
       "score": {
-        "score": 75,
-        "passed": false,
-        "failure_modes": [
-          "wrong_decision"
-        ],
+        "score": 100,
+        "passed": true,
+        "failure_modes": [],
         "expected": {
           "answer_type": "scenario_decision",
           "decision": [
@@ -2432,7 +2447,7 @@
         },
         "actual": {
           "answer_type": "scenario_decision",
-          "decision": "Needs more information",
+          "decision": "Not allowed",
           "sections": [
             "RE-020",
             "RE-025",
@@ -2441,6 +2456,7 @@
           ],
           "approvals": [],
           "open_questions": [
+            "expense amount",
             "itemized receipt",
             "business purpose",
             "approval status"
@@ -2449,17 +2465,16 @@
         "missing_concepts": [
           "duplicate"
         ],
-        "answer_excerpt": "Decision: Needs more information\n\nRisk level: Medium\nConfidence: 0%\n\nShort answer:\nA provisional decision cannot be made yet because essential facts or policy evidence are still missing.\n\nWhy this decision:\n- Essential facts or policy evidence are still missing for a confident decision.\n\nOpen questions:\n- itemized receipt\n- business purpose\n- approval status\n\nRecommended next steps:\n1. Provide amount before submitting.\n2. Confirm itemized receipt.\n3. Confirm business purpose.\n4. Confirm approval",
-        "suggested_fixes": [
-          "Ground decision_rules.py in extracted policy rules and corpus thresholds."
-        ]
+        "answer_excerpt": "Decision: Not allowed\n\nRisk level: High\nConfidence: 85%\n\nShort answer:\nThe retrieved policy sections indicate this request should not proceed without an explicit exception from the appropriate governance team.\n\nWhy this decision:\n- TE-030 says Example: Lost taxi receipt Scenario: Employee lost a taxi receipt for a business ride.\n- RE-025 says Example: Late claim after 45 days Scenario: Employee submits a claim 45 days after expense date.\n- RE-020 says RE-020 Partial Reimbursement Finance may rei",
+        "suggested_fixes": []
       },
       "state_summary": {
         "answer_type": "scenario_decision",
-        "policy_decision": "Needs more information",
-        "risk_level": "Medium",
-        "confidence": 0.0,
+        "policy_decision": "Not allowed",
+        "risk_level": "High",
+        "confidence": 0.85,
         "open_questions": [
+          "expense amount",
           "itemized receipt",
           "business purpose",
           "approval status"
@@ -2556,11 +2571,9 @@
       ],
       "query": "Can I claim a personal purchase if I used it during work?",
       "score": {
-        "score": 75,
-        "passed": false,
-        "failure_modes": [
-          "wrong_decision"
-        ],
+        "score": 100,
+        "passed": true,
+        "failure_modes": [],
         "expected": {
           "answer_type": "scenario_decision",
           "decision": [
@@ -2575,36 +2588,44 @@
         },
         "actual": {
           "answer_type": "scenario_decision",
-          "decision": "Allowed",
+          "decision": "Not allowed",
           "sections": [
-            "RE-009",
+            "RE-001",
+            "RE-002",
             "RE-020",
-            "TE-006",
-            "TE-019",
+            "RE-025",
             "TE-021"
           ],
           "approvals": [],
-          "open_questions": []
+          "open_questions": [
+            "expense amount",
+            "itemized receipt",
+            "business purpose",
+            "approval status"
+          ]
         },
         "missing_concepts": [],
-        "answer_excerpt": "Decision: Allowed\n\nRisk level: Low\nConfidence: 48%\n\nShort answer:\nBased on the facts provided, this request appears permitted under the retrieved policy sections, subject to standard documentation requirements.\n\nWhy this decision:\n- RE-020 says RE-020 Partial Reimbursement Finance may reimburse only the business-supported portion of a claim when personal items are mixed on one receipt.\n- TE-021 says TE-021 Personal Card Usage Personal card payment is permitted when policy rules, receipts, and ap",
-        "suggested_fixes": [
-          "Ground decision_rules.py in extracted policy rules and corpus thresholds."
-        ]
+        "answer_excerpt": "Decision: Not allowed\n\nRisk level: High\nConfidence: 84%\n\nShort answer:\nThe retrieved policy sections indicate this request should not proceed without an explicit exception from the appropriate governance team.\n\nWhy this decision:\n- RE-020 says RE-020 Partial Reimbursement Finance may reimburse only the business-supported portion of a claim when personal items are mixed on one receipt.\n- TE-021 says TE-021 Personal Card Usage Personal card payment is permitted when policy rules, receipts, and app",
+        "suggested_fixes": []
       },
       "state_summary": {
         "answer_type": "scenario_decision",
-        "policy_decision": "Allowed",
-        "risk_level": "Low",
-        "confidence": 0.48,
-        "open_questions": [],
+        "policy_decision": "Not allowed",
+        "risk_level": "High",
+        "confidence": 0.84,
+        "open_questions": [
+          "expense amount",
+          "itemized receipt",
+          "business purpose",
+          "approval status"
+        ],
         "required_approvals": [],
         "cited_sections": [
           "RE-020",
           "TE-021",
-          "RE-009",
-          "TE-006",
-          "TE-019"
+          "RE-025",
+          "RE-002",
+          "RE-001"
         ],
         "retrieved_count": 5
       }
@@ -2692,11 +2713,9 @@
       ],
       "query": "Can I send employee HR data to an external analytics vendor?",
       "score": {
-        "score": 75,
-        "passed": false,
-        "failure_modes": [
-          "wrong_decision"
-        ],
+        "score": 100,
+        "passed": true,
+        "failure_modes": [],
         "expected": {
           "answer_type": "scenario_decision",
           "decision": "Escalate",
@@ -2711,8 +2730,8 @@
           ]
         },
         "actual": {
-          "answer_type": "scenario_decision",
-          "decision": "Needs approval",
+          "answer_type": "escalation_guidance",
+          "decision": "Escalate",
           "sections": [
             "AM-019",
             "DA-004",
@@ -2721,29 +2740,31 @@
             "DA-035"
           ],
           "approvals": [
+            "Compliance",
             "Information Security",
             "Legal",
             "HR"
           ],
           "open_questions": [
+            "Information Security approval status",
             "data classification"
           ]
         },
         "missing_concepts": [],
-        "answer_excerpt": "Decision: Needs approval\n\nRisk level: High\nConfidence: 63%\n\nShort answer:\nYou can likely proceed only after the required approvals are in place. The policy evidence suggests approval is required, not an automatic rejection.\n\nWhy this decision:\n- DA-018 says DA-018 HR Data External Vendors Sending employee HR data to an external analytics vendor requires HR data owner, Legal, and Information Security approval.\n- DA-017 says DA-017 Customer Data External Vendors Sharing customer data with an exter",
-        "suggested_fixes": [
-          "Ground decision_rules.py in extracted policy rules and corpus thresholds."
-        ]
+        "answer_excerpt": "Decision: Escalate\n\nRisk level: High\nConfidence: 70%\n\nShort answer:\nThis scenario has elevated risk. Escalate to the appropriate governance team before taking any action.\n\nWhy escalation is required:\n- This scenario has elevated governance or compliance risk.\n- Sensitive data shared externally requires Security and Legal review.\n- HR data shared with an external vendor requires HR, Legal, and InfoSec escalation.\n\nRequired approvals:\n- Compliance\n- Information Security\n- Legal\n- HR\n\nRecommended n",
+        "suggested_fixes": []
       },
       "state_summary": {
-        "answer_type": "scenario_decision",
-        "policy_decision": "Needs approval",
+        "answer_type": "escalation_guidance",
+        "policy_decision": "Escalate",
         "risk_level": "High",
-        "confidence": 0.63,
+        "confidence": 0.7,
         "open_questions": [
+          "Information Security approval status",
           "data classification"
         ],
         "required_approvals": [
+          "Compliance",
           "Information Security",
           "Legal",
           "HR"
@@ -2751,9 +2772,9 @@
         "cited_sections": [
           "DA-018",
           "DA-017",
-          "DA-004",
           "AM-019",
-          "DA-035"
+          "DA-035",
+          "DA-004"
         ],
         "retrieved_count": 5
       }
@@ -2767,11 +2788,9 @@
       ],
       "query": "Can I access finance reports if I am not on the Finance team?",
       "score": {
-        "score": 75,
-        "passed": false,
-        "failure_modes": [
-          "wrong_decision"
-        ],
+        "score": 100,
+        "passed": true,
+        "failure_modes": [],
         "expected": {
           "answer_type": "scenario_decision",
           "decision": "Needs approval",
@@ -2782,34 +2801,44 @@
         },
         "actual": {
           "answer_type": "scenario_decision",
-          "decision": "Allowed",
+          "decision": "Needs approval",
           "sections": [
             "AM-012",
             "DA-005",
             "DA-019",
+            "DA-030",
             "DA-035"
           ],
-          "approvals": [],
-          "open_questions": []
+          "approvals": [
+            "Finance",
+            "Information Security"
+          ],
+          "open_questions": [
+            "data classification"
+          ]
         },
         "missing_concepts": [],
-        "answer_excerpt": "Decision: Allowed\n\nRisk level: Low\nConfidence: 60%\n\nShort answer:\nBased on the facts provided, this request appears permitted under the retrieved policy sections, subject to standard documentation requirements.\n\nWhy this decision:\n- DA-019 says DA-019 Finance Data Access by Non-Finance Employees Non-finance employees may access finance reports only with finance data owner approval and documented project need.\n- DA-005 says DA-005 Finance Data Finance reports, payroll interfaces, and accounting r",
-        "suggested_fixes": [
-          "Ground decision_rules.py in extracted policy rules and corpus thresholds."
-        ]
+        "answer_excerpt": "Decision: Needs approval\n\nRisk level: High\nConfidence: 78%\n\nShort answer:\nYou can likely proceed only after the required approvals are in place. The policy evidence suggests approval is required, not an automatic rejection.\n\nWhy this decision:\n- DA-019 says DA-019 Finance Data Access by Non-Finance Employees Non-finance employees may access finance reports only with finance data owner approval and documented project need.\n- DA-005 says DA-005 Finance Data Finance reports, payroll interfaces, and",
+        "suggested_fixes": []
       },
       "state_summary": {
         "answer_type": "scenario_decision",
-        "policy_decision": "Allowed",
-        "risk_level": "Low",
-        "confidence": 0.6,
-        "open_questions": [],
-        "required_approvals": [],
+        "policy_decision": "Needs approval",
+        "risk_level": "High",
+        "confidence": 0.78,
+        "open_questions": [
+          "data classification"
+        ],
+        "required_approvals": [
+          "Finance",
+          "Information Security"
+        ],
         "cited_sections": [
           "DA-019",
           "DA-005",
           "DA-035",
-          "AM-012"
+          "AM-012",
+          "DA-030"
         ],
         "retrieved_count": 5
       }
@@ -2823,11 +2852,9 @@
       ],
       "query": "I already sent customer data to a vendor before Security approval. What should I do?",
       "score": {
-        "score": 75,
-        "passed": false,
-        "failure_modes": [
-          "wrong_decision"
-        ],
+        "score": 100,
+        "passed": true,
+        "failure_modes": [],
         "expected": {
           "answer_type": "scenario_decision",
           "decision": "Escalate",
@@ -2837,8 +2864,8 @@
           "approvals": null
         },
         "actual": {
-          "answer_type": "scenario_decision",
-          "decision": "Needs approval",
+          "answer_type": "escalation_guidance",
+          "decision": "Escalate",
           "sections": [
             "AM-013",
             "AM-019",
@@ -2847,38 +2874,40 @@
             "DA-035"
           ],
           "approvals": [
+            "Compliance",
             "Information Security",
             "Legal"
           ],
           "open_questions": [
+            "Information Security approval status",
             "data classification"
           ]
         },
         "missing_concepts": [
           "notify"
         ],
-        "answer_excerpt": "Decision: Needs approval\n\nRisk level: High\nConfidence: 50%\n\nShort answer:\nYou can likely proceed only after the required approvals are in place. The policy evidence suggests approval is required, not an automatic rejection.\n\nWhy this decision:\n- DA-017 says DA-017 Customer Data External Vendors Sharing customer data with an external vendor for analysis requires business owner approval, Legal review, Information Security review, DPA, vendor security assessment, approved transfer method, and minim",
-        "suggested_fixes": [
-          "Ground decision_rules.py in extracted policy rules and corpus thresholds."
-        ]
+        "answer_excerpt": "Decision: Escalate\n\nRisk level: High\nConfidence: 70%\n\nShort answer:\nThis scenario has elevated risk. Escalate to the appropriate governance team before taking any action.\n\nWhy escalation is required:\n- This scenario has elevated governance or compliance risk.\n- Sensitive data shared externally requires Security and Legal review.\n- Data already shared without approval requires immediate InfoSec notification.\n\nRequired approvals:\n- Compliance\n- Information Security\n- Legal\n\nRecommended next steps:",
+        "suggested_fixes": []
       },
       "state_summary": {
-        "answer_type": "scenario_decision",
-        "policy_decision": "Needs approval",
+        "answer_type": "escalation_guidance",
+        "policy_decision": "Escalate",
         "risk_level": "High",
-        "confidence": 0.5,
+        "confidence": 0.7,
         "open_questions": [
+          "Information Security approval status",
           "data classification"
         ],
         "required_approvals": [
+          "Compliance",
           "Information Security",
           "Legal"
         ],
         "cited_sections": [
           "AM-019",
           "DA-017",
-          "AM-013",
           "DA-035",
+          "AM-013",
           "DA-018"
         ],
         "retrieved_count": 5
@@ -2893,11 +2922,9 @@
       ],
       "query": "Can I upload customer data to ChatGPT or another public AI tool?",
       "score": {
-        "score": 75,
-        "passed": false,
-        "failure_modes": [
-          "wrong_decision"
-        ],
+        "score": 100,
+        "passed": true,
+        "failure_modes": [],
         "expected": {
           "answer_type": "scenario_decision",
           "decision": [
@@ -2911,13 +2938,13 @@
         },
         "actual": {
           "answer_type": "scenario_decision",
-          "decision": "Needs approval",
+          "decision": "Escalate",
           "sections": [
             "DA-023"
           ],
           "approvals": [
-            "Information Security",
-            "Legal"
+            "Compliance",
+            "Information Security"
           ],
           "open_questions": [
             "data classification"
@@ -2926,22 +2953,20 @@
         "missing_concepts": [
           "not allowed"
         ],
-        "answer_excerpt": "Decision: Needs approval\n\nRisk level: High\nConfidence: 50%\n\nShort answer:\nYou can likely proceed only after the required approvals are in place. The policy evidence suggests approval is required, not an automatic rejection.\n\nWhy this decision:\n- DA-023 says DA-023 AI Tools and Data Handling Public or Internal data may be used only in approved AI tools.\n\nPolicy basis:\n- DA-023: DA-023 AI Tools and Data Handling Public or Internal data may be used only in approved AI tools.\n\nRequired approvals:\n- ",
-        "suggested_fixes": [
-          "Ground decision_rules.py in extracted policy rules and corpus thresholds."
-        ]
+        "answer_excerpt": "Decision: Escalate\n\nRisk level: High\nConfidence: 70%\n\nShort answer:\nThis scenario has elevated risk. Escalate to the appropriate governance team before taking any action.\n\nWhy this decision:\n- This scenario has elevated governance or compliance risk.\n- Sensitive data in public AI tools requires Information Security review.\n\nRequired approvals:\n- Compliance\n- Information Security\n\nOpen questions:\n- data classification\n\nRecommended next steps:\n1. Do not proceed until the required approvals are con",
+        "suggested_fixes": []
       },
       "state_summary": {
         "answer_type": "scenario_decision",
-        "policy_decision": "Needs approval",
+        "policy_decision": "Escalate",
         "risk_level": "High",
-        "confidence": 0.5,
+        "confidence": 0.7,
         "open_questions": [
           "data classification"
         ],
         "required_approvals": [
-          "Information Security",
-          "Legal"
+          "Compliance",
+          "Information Security"
         ],
         "cited_sections": [
           "DA-023",
@@ -2960,11 +2985,9 @@
       ],
       "query": "Can I share a confidential document using my personal Gmail?",
       "score": {
-        "score": 75,
-        "passed": false,
-        "failure_modes": [
-          "wrong_decision"
-        ],
+        "score": 100,
+        "passed": true,
+        "failure_modes": [],
         "expected": {
           "answer_type": "scenario_decision",
           "decision": [
@@ -2978,7 +3001,7 @@
         },
         "actual": {
           "answer_type": "scenario_decision",
-          "decision": "Allowed",
+          "decision": "Escalate",
           "sections": [
             "DA-007",
             "DA-009",
@@ -2986,29 +3009,37 @@
             "DA-013",
             "DA-031"
           ],
-          "approvals": [],
-          "open_questions": []
+          "approvals": [
+            "Compliance",
+            "Information Security"
+          ],
+          "open_questions": [
+            "data classification"
+          ]
         },
         "missing_concepts": [
           "not allowed"
         ],
-        "answer_excerpt": "Decision: Allowed\n\nRisk level: Low\nConfidence: 48%\n\nShort answer:\nBased on the facts provided, this request appears permitted under the retrieved policy sections, subject to standard documentation requirements.\n\nWhy this decision:\n- DA-007 says DA-007 External Sharing Controls External sharing of Confidential or Restricted data requires business justification, data owner approval, classification review, data processing agreement, vendor security review, approved transfer method, minimum necessar",
-        "suggested_fixes": [
-          "Ground decision_rules.py in extracted policy rules and corpus thresholds."
-        ]
+        "answer_excerpt": "Decision: Escalate\n\nRisk level: High\nConfidence: 70%\n\nShort answer:\nThis scenario has elevated risk. Escalate to the appropriate governance team before taking any action.\n\nWhy this decision:\n- This scenario has elevated governance or compliance risk.\n- Confidential data on personal channels is not permitted.\n\nRequired approvals:\n- Compliance\n- Information Security\n\nOpen questions:\n- data classification\n\nRecommended next steps:\n1. Do not proceed until the required approvals are confirmed.\n2. Requ",
+        "suggested_fixes": []
       },
       "state_summary": {
         "answer_type": "scenario_decision",
-        "policy_decision": "Allowed",
-        "risk_level": "Low",
-        "confidence": 0.48,
-        "open_questions": [],
-        "required_approvals": [],
+        "policy_decision": "Escalate",
+        "risk_level": "High",
+        "confidence": 0.7,
+        "open_questions": [
+          "data classification"
+        ],
+        "required_approvals": [
+          "Compliance",
+          "Information Security"
+        ],
         "cited_sections": [
           "DA-007",
           "DA-013",
-          "DA-009",
           "DA-012",
+          "DA-009",
           "DA-031"
         ],
         "retrieved_count": 5
@@ -3023,11 +3054,9 @@
       ],
       "query": "A vendor needs access to production logs for debugging. What approvals are needed?",
       "score": {
-        "score": 90,
+        "score": 100,
         "passed": true,
-        "failure_modes": [
-          "missing_required_approval"
-        ],
+        "failure_modes": [],
         "expected": {
           "answer_type": "scenario_decision",
           "decision": "Needs approval",
@@ -3040,36 +3069,44 @@
         },
         "actual": {
           "answer_type": "scenario_decision",
-          "decision": "Allowed",
+          "decision": "Needs approval",
           "sections": [
             "AM-013",
             "AM-019",
+            "DA-017",
             "DA-021",
-            "DA-035",
-            "GH-025"
+            "DA-035"
           ],
-          "approvals": [],
-          "open_questions": []
+          "approvals": [
+            "Information Security",
+            "System Owner"
+          ],
+          "open_questions": [
+            "Information Security approval status"
+          ]
         },
         "missing_concepts": [],
-        "answer_excerpt": "Decision: Allowed\n\nRisk level: Low\nConfidence: 59%\n\nShort answer:\nBased on the facts provided, this request appears permitted under the retrieved policy sections, subject to standard documentation requirements.\n\nWhy this decision:\n- DA-021 says DA-021 Vendor Production Access Vendor access to production systems requires system owner and Information Security approval, least privilege, logging, and time limits.\n- AM-013 says AM-013 Vendor and Third-Party Access Vendor access to data, systems, prod",
-        "suggested_fixes": [
-          "Align decision_rules required_approvals with AM matrix sections."
-        ]
+        "answer_excerpt": "Decision: Needs approval\n\nRisk level: High\nConfidence: 77%\n\nShort answer:\nYou can likely proceed only after the required approvals are in place. The policy evidence suggests approval is required, not an automatic rejection.\n\nWhy this decision:\n- DA-021 says DA-021 Vendor Production Access Vendor access to production systems requires system owner and Information Security approval, least privilege, logging, and time limits.\n- DA-035 says Example: Vendor production access Scenario: Vendor requests ",
+        "suggested_fixes": []
       },
       "state_summary": {
         "answer_type": "scenario_decision",
-        "policy_decision": "Allowed",
-        "risk_level": "Low",
-        "confidence": 0.59,
-        "open_questions": [],
-        "required_approvals": [],
+        "policy_decision": "Needs approval",
+        "risk_level": "High",
+        "confidence": 0.77,
+        "open_questions": [
+          "Information Security approval status"
+        ],
+        "required_approvals": [
+          "Information Security",
+          "System Owner"
+        ],
         "cited_sections": [
           "DA-021",
-          "AM-013",
           "DA-035",
           "AM-019",
-          "GH-025"
+          "AM-013",
+          "DA-017"
         ],
         "retrieved_count": 5
       }
@@ -3083,11 +3120,9 @@
       ],
       "query": "Can I create a public link to a confidential deck for an external partner?",
       "score": {
-        "score": 75,
-        "passed": false,
-        "failure_modes": [
-          "wrong_decision"
-        ],
+        "score": 100,
+        "passed": true,
+        "failure_modes": [],
         "expected": {
           "answer_type": "scenario_decision",
           "decision": [
@@ -3102,36 +3137,42 @@
         },
         "actual": {
           "answer_type": "scenario_decision",
-          "decision": "Allowed",
+          "decision": "Not allowed",
           "sections": [
             "AM-019",
             "DA-007",
             "DA-012",
             "DA-013",
-            "DA-028"
+            "DA-035"
           ],
-          "approvals": [],
-          "open_questions": []
+          "approvals": [
+            "Information Security"
+          ],
+          "open_questions": [
+            "data classification"
+          ]
         },
         "missing_concepts": [],
-        "answer_excerpt": "Decision: Allowed\n\nRisk level: Low\nConfidence: 48%\n\nShort answer:\nBased on the facts provided, this request appears permitted under the retrieved policy sections, subject to standard documentation requirements.\n\nWhy this decision:\n- DA-012 says DA-012 Public and Internal Data Public data may be shared externally without restriction.\n- DA-007 says DA-007 External Sharing Controls External sharing of Confidential or Restricted data requires business justification, data owner approval, classificati",
-        "suggested_fixes": [
-          "Ground decision_rules.py in extracted policy rules and corpus thresholds."
-        ]
+        "answer_excerpt": "Decision: Not allowed\n\nRisk level: High\nConfidence: 81%\n\nShort answer:\nThe retrieved policy sections indicate this request should not proceed without an explicit exception from the appropriate governance team.\n\nWhy this decision:\n- DA-012 says DA-012 Public and Internal Data Public data may be shared externally without restriction.\n- DA-007 says DA-007 External Sharing Controls External sharing of Confidential or Restricted data requires business justification, data owner approval, classificatio",
+        "suggested_fixes": []
       },
       "state_summary": {
         "answer_type": "scenario_decision",
-        "policy_decision": "Allowed",
-        "risk_level": "Low",
-        "confidence": 0.48,
-        "open_questions": [],
-        "required_approvals": [],
+        "policy_decision": "Not allowed",
+        "risk_level": "High",
+        "confidence": 0.81,
+        "open_questions": [
+          "data classification"
+        ],
+        "required_approvals": [
+          "Information Security"
+        ],
         "cited_sections": [
           "DA-012",
           "DA-007",
-          "DA-013",
           "AM-019",
-          "DA-028"
+          "DA-013",
+          "DA-035"
         ],
         "retrieved_count": 5
       }
@@ -3218,11 +3259,9 @@
       ],
       "query": "Actually I will be working from Dubai for part of it.",
       "score": {
-        "score": 88,
+        "score": 100,
         "passed": true,
-        "failure_modes": [
-          "redundant_open_question"
-        ],
+        "failure_modes": [],
         "expected": {
           "answer_type": null,
           "decision": [
@@ -3251,15 +3290,12 @@
           ],
           "open_questions": [
             "work location",
-            "manager approval",
             "cross-border approval details"
           ]
         },
         "missing_concepts": [],
-        "answer_excerpt": "Decision: Escalate\n\nRisk level: High\nConfidence: 70%\n\nShort answer:\nThis scenario has elevated risk. Escalate to the appropriate governance team before taking any action.\n\nWhy this decision:\n- This scenario has elevated governance or compliance risk.\n- Cross-border work requires HR and Legal review.\n\nHow this applies to your case:\n- Duration: part of it\n\nRequired approvals:\n- Compliance\n- HR\n- Legal\n\nOpen questions:\n- work location\n- manager approval\n- cross-border approval details\n\nRecommended ",
-        "suggested_fixes": [
-          "Tighten filter_redundant_open_questions in tools.py."
-        ]
+        "answer_excerpt": "Decision: Escalate\n\nRisk level: High\nConfidence: 70%\n\nShort answer:\nThis scenario has elevated risk. Escalate to the appropriate governance team before taking any action.\n\nWhy this decision:\n- This scenario has elevated governance or compliance risk.\n- Cross-border work requires HR and Legal review.\n\nHow this applies to your case:\n- Duration: 2 week\n\nRequired approvals:\n- Compliance\n- HR\n- Legal\n\nOpen questions:\n- work location\n- cross-border approval details\n\nRecommended next steps:\n1. Do not p",
+        "suggested_fixes": []
       },
       "state_summary": {
         "answer_type": "clarification_followup",
@@ -3268,7 +3304,6 @@
         "confidence": 0.7,
         "open_questions": [
           "work location",
-          "manager approval",
           "cross-border approval details"
         ],
         "required_approvals": [
@@ -3628,11 +3663,9 @@
       ],
       "query": "Can I accept an INR 12,000 vendor gift? Actually it is INR 2,000.",
       "score": {
-        "score": 75,
-        "passed": false,
-        "failure_modes": [
-          "wrong_decision"
-        ],
+        "score": 100,
+        "passed": true,
+        "failure_modes": [],
         "expected": {
           "answer_type": "scenario_decision",
           "decision": [
@@ -3644,7 +3677,7 @@
         },
         "actual": {
           "answer_type": "scenario_decision",
-          "decision": "Needs approval",
+          "decision": "Allowed",
           "sections": [
             "AM-010",
             "AM-019",
@@ -3652,34 +3685,26 @@
             "GH-005",
             "GH-025"
           ],
-          "approvals": [
-            "Manager",
-            "Compliance"
-          ],
+          "approvals": [],
           "open_questions": [
             "whether the gift is cash or cash equivalent",
             "whether a public official is involved"
           ]
         },
         "missing_concepts": [],
-        "answer_excerpt": "Decision: Needs approval\n\nRisk level: Medium\nConfidence: 56%\n\nShort answer:\nYou can likely proceed only after the required approvals are in place. The policy evidence suggests approval is required, not an automatic rejection.\n\nWhy this decision:\n- GH-025 says Example: INR 12,000 gift hamper from vendor Scenario: Vendor offers a hamper worth INR 12,000.\n- GH-003 says GH-003 Gift Value Thresholds | Value band | Requirement | |------------|-------------| | Under INR 2,500 | Generally acceptable if ",
-        "suggested_fixes": [
-          "Ground decision_rules.py in extracted policy rules and corpus thresholds."
-        ]
+        "answer_excerpt": "Decision: Allowed\n\nRisk level: Low\nConfidence: 56%\n\nShort answer:\nBased on the facts provided, this request appears permitted under the retrieved policy sections, subject to standard documentation requirements.\n\nWhy this decision:\n- GH-003 says GH-003 Gift Value Thresholds | Value band | Requirement | |------------|-------------| | Under INR 2,500 | Generally acceptable if modest, infrequent, not cash, not from a public official, and not during a procurement blackout | | INR 2,500\u20135,000 | Manage",
+        "suggested_fixes": []
       },
       "state_summary": {
         "answer_type": "scenario_decision",
-        "policy_decision": "Needs approval",
-        "risk_level": "Medium",
+        "policy_decision": "Allowed",
+        "risk_level": "Low",
         "confidence": 0.56,
         "open_questions": [
           "whether the gift is cash or cash equivalent",
           "whether a public official is involved"
         ],
-        "required_approvals": [
-          "Manager",
-          "Compliance"
-        ],
+        "required_approvals": [],
         "cited_sections": [
           "AM-019",
           "GH-025",
@@ -3784,12 +3809,13 @@
           ],
           "approvals": [],
           "open_questions": [
+            "gift value",
             "whether the gift is cash or cash equivalent",
             "whether a public official is involved"
           ]
         },
         "missing_concepts": [],
-        "answer_excerpt": "Decision: Needs more information\n\nRisk level: Medium\nConfidence: 0%\n\nShort answer:\nA provisional decision cannot be made yet because essential facts or policy evidence are still missing.\n\nWhy this decision:\n- Essential facts or policy evidence are still missing for a confident decision.\n\nOpen questions:\n- whether the gift is cash or cash equivalent\n- whether a public official is involved\n\nRecommended next steps:\n1. Provide gift value before submitting.\n2. Confirm whether the gift is cash or cash",
+        "answer_excerpt": "Decision: Needs more information\n\nRisk level: Medium\nConfidence: 0%\n\nShort answer:\nA provisional decision cannot be made yet because essential facts or policy evidence are still missing.\n\nWhy this decision:\n- Essential facts or policy evidence are still missing for a confident decision.\n\nOpen questions:\n- gift value\n- whether the gift is cash or cash equivalent\n- whether a public official is involved\n\nRecommended next steps:\n1. Provide gift value before submitting.\n2. Confirm gift value.\n3. Conf",
         "suggested_fixes": []
       },
       "state_summary": {
@@ -3798,6 +3824,7 @@
         "risk_level": "Medium",
         "confidence": 0.0,
         "open_questions": [
+          "gift value",
           "whether the gift is cash or cash equivalent",
           "whether a public official is involved"
         ],
@@ -3974,12 +4001,13 @@
           ],
           "approvals": [],
           "open_questions": [
+            "gift value",
             "whether the gift is cash or cash equivalent",
             "whether a public official is involved"
           ]
         },
         "missing_concepts": [],
-        "answer_excerpt": "Decision: Needs more information\n\nRisk level: Medium\nConfidence: 0%\n\nShort answer:\nA provisional decision cannot be made yet because essential facts or policy evidence are still missing.\n\nWhy this decision:\n- Essential facts or policy evidence are still missing for a confident decision.\n\nOpen questions:\n- whether the gift is cash or cash equivalent\n- whether a public official is involved\n\nRecommended next steps:\n1. Provide gift value before submitting.\n2. Confirm whether the gift is cash or cash",
+        "answer_excerpt": "Decision: Needs more information\n\nRisk level: Medium\nConfidence: 0%\n\nShort answer:\nA provisional decision cannot be made yet because essential facts or policy evidence are still missing.\n\nWhy this decision:\n- Essential facts or policy evidence are still missing for a confident decision.\n\nOpen questions:\n- gift value\n- whether the gift is cash or cash equivalent\n- whether a public official is involved\n\nRecommended next steps:\n1. Provide gift value before submitting.\n2. Confirm gift value.\n3. Conf",
         "suggested_fixes": []
       },
       "state_summary": {
@@ -3988,6 +4016,7 @@
         "risk_level": "Medium",
         "confidence": 0.0,
         "open_questions": [
+          "gift value",
           "whether the gift is cash or cash equivalent",
           "whether a public official is involved"
         ],
@@ -4087,37 +4116,41 @@
           "approvals": null
         },
         "actual": {
-          "answer_type": "scenario_decision",
-          "decision": "Needs approval",
+          "answer_type": "escalation_guidance",
+          "decision": "Escalate",
           "sections": [
-            "AM-013",
             "AM-019",
             "DA-004",
             "DA-018",
-            "DA-031"
+            "DA-031",
+            "DA-035"
           ],
           "approvals": [
+            "Compliance",
             "Information Security",
             "Legal",
             "HR"
           ],
           "open_questions": [
+            "Information Security approval status",
             "data classification"
           ]
         },
         "missing_concepts": [],
-        "answer_excerpt": "Decision: Needs approval\n\nRisk level: High\nConfidence: 50%\n\nShort answer:\nYou can likely proceed only after the required approvals are in place. The policy evidence suggests approval is required, not an automatic rejection.\n\nWhy this decision:\n- DA-018 says DA-018 HR Data External Vendors Sending employee HR data to an external analytics vendor requires HR data owner, Legal, and Information Security approval.\n- DA-031 says DA-031 Prohibited Transfer Scenarios Do not send customer lists to person",
+        "answer_excerpt": "Decision: Escalate\n\nRisk level: High\nConfidence: 70%\n\nShort answer:\nThis scenario has elevated risk. Escalate to the appropriate governance team before taking any action.\n\nWhy escalation is required:\n- This scenario has elevated governance or compliance risk.\n- Sensitive data shared externally requires Security and Legal review.\n- HR data shared with an external vendor requires HR, Legal, and InfoSec escalation.\n\nRequired approvals:\n- Compliance\n- Information Security\n- Legal\n- HR\n\nRecommended n",
         "suggested_fixes": []
       },
       "state_summary": {
-        "answer_type": "scenario_decision",
-        "policy_decision": "Needs approval",
+        "answer_type": "escalation_guidance",
+        "policy_decision": "Escalate",
         "risk_level": "High",
-        "confidence": 0.5,
+        "confidence": 0.7,
         "open_questions": [
+          "Information Security approval status",
           "data classification"
         ],
         "required_approvals": [
+          "Compliance",
           "Information Security",
           "Legal",
           "HR"
@@ -4125,9 +4158,9 @@
         "cited_sections": [
           "DA-018",
           "DA-031",
-          "DA-004",
           "AM-019",
-          "AM-013"
+          "DA-004",
+          "DA-035"
         ],
         "retrieved_count": 5
       }
@@ -4328,9 +4361,9 @@
           "answer_type": "scenario_decision",
           "decision": "Allowed",
           "sections": [
+            "RE-001",
             "RE-002",
             "RE-012",
-            "RE-025",
             "TE-028",
             "TE-030"
           ],
@@ -4352,8 +4385,8 @@
           "TE-028",
           "TE-030",
           "RE-012",
-          "RE-025",
-          "RE-002"
+          "RE-002",
+          "RE-001"
         ],
         "retrieved_count": 5
       }
@@ -4468,9 +4501,11 @@
       ],
       "query": "What is prompt injection?",
       "score": {
-        "score": 100,
+        "score": 88,
         "passed": true,
-        "failure_modes": [],
+        "failure_modes": [
+          "low_grounding"
+        ],
         "expected": {
           "answer_type": null,
           "decision": null,
@@ -4484,9 +4519,14 @@
           "approvals": null,
           "open_questions": null
         },
-        "missing_concepts": [],
-        "answer_excerpt": "Prompt injection is a type of vulnerability in which an attacker manipulates the input provided to a language model (LLM) to alter its behavior in unintended ways. There are two main types of prompt injection:\n\n- **Direct Prompt Injections**: Occur when a user's prompt input directly changes the model's behavior, which can be either intentional (malicious) or unintentional (inadvertent).\n- **Indirect Prompt Injections**: Happen when an LLM accepts input from external sources, such as websites or",
-        "suggested_fixes": []
+        "missing_concepts": [
+          "prompt",
+          "injection"
+        ],
+        "answer_excerpt": "I don't know based on the provided documents.",
+        "suggested_fixes": [
+          "Include must_include concepts from policy_basis and retrieved chunk text."
+        ]
       },
       "state_summary": {
         "answer_type": null,
@@ -4495,14 +4535,8 @@
         "confidence": null,
         "open_questions": [],
         "required_approvals": [],
-        "cited_sections": [
-          null,
-          null,
-          null,
-          null,
-          null
-        ],
-        "retrieved_count": 5
+        "cited_sections": [],
+        "retrieved_count": 0
       }
     },
     {
@@ -4531,7 +4565,7 @@
           "open_questions": null
         },
         "missing_concepts": [],
-        "answer_excerpt": "The core functions of the NIST AI RMF are:\n\n- GOVERN\n- MAP\n- MEASURE\n- MANAGE\n\nThese functions help organizations address the risks of AI systems in practice and are broken down into categories and subcategories for specific actions and outcomes [source_file: nist-ai-100-1.pdf, page 24].",
+        "answer_excerpt": "The core functions of the NIST AI RMF are:\n\n- GOVERN\n- MAP\n- MEASURE\n- MANAGE\n\nThese functions help organizations address the risks of AI systems in practice and are broken down into categories and subcategories for specific actions and outcomes [source_file, page 24].",
         "suggested_fixes": []
       },
       "state_summary": {
@@ -4639,14 +4673,8 @@
         "confidence": null,
         "open_questions": [],
         "required_approvals": [],
-        "cited_sections": [
-          null,
-          null,
-          null,
-          null,
-          null
-        ],
-        "retrieved_count": 5
+        "cited_sections": [],
+        "retrieved_count": 0
       }
     },
     {
@@ -4658,11 +4686,9 @@
       ],
       "query": "What is my company's refund policy?",
       "score": {
-        "score": 70,
-        "passed": false,
-        "failure_modes": [
-          "boundary_failure"
-        ],
+        "score": 100,
+        "passed": true,
+        "failure_modes": [],
         "expected": {
           "answer_type": null,
           "decision": null,
@@ -4677,10 +4703,8 @@
           "open_questions": null
         },
         "missing_concepts": [],
-        "answer_excerpt": "Your company's refund policy is defined in the reimbursement policy, which outlines how employees can submit, document, and receive reimbursement for legitimate business expenses under accountable-plan principles. \n\nKey points include:\n- **Scope**: Covers reimbursement claims for travel, meals, supplies, and other business expenses not paid directly by Acme Corp [source_file: acme_reimbursement_policy.md, page unknown].\n- **Tax Treatment**: Employees must understand local tax implications of rei",
-        "suggested_fixes": [
-          "Return explicit no-policy-found response when corpus has no match."
-        ]
+        "answer_excerpt": "I don't know based on the provided documents.",
+        "suggested_fixes": []
       },
       "state_summary": {
         "answer_type": null,
@@ -4689,14 +4713,8 @@
         "confidence": null,
         "open_questions": [],
         "required_approvals": [],
-        "cited_sections": [
-          null,
-          null,
-          null,
-          null,
-          null
-        ],
-        "retrieved_count": 5
+        "cited_sections": [],
+        "retrieved_count": 0
       }
     }
   ]

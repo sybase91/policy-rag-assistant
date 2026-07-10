@@ -10,6 +10,8 @@ POLICY_EXPLANATION_PATTERNS = (
     r"^what is the .+ reimbursement",
     r"^explain the .+ policy",
     r"^tell me about the .+ policy",
+    r"approval matrix",
+    r"explain the approval matrix",
 )
 
 SCENARIO_PATTERNS = (
