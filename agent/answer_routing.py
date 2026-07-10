@@ -58,4 +58,7 @@ def classify_answer_type(
     if len(text.split()) <= 8 and "policy" in text and "help" in text:
         return "insufficient_context"
 
+    if text.strip() in {"can i do it?", "is this allowed under policy?"}:
+        return "insufficient_context"
+
     return "scenario_decision"

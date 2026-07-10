@@ -148,6 +148,9 @@ def escalation_review_node(state: AgentState) -> AgentState:
     if facts.get("cross_border_work"):
         approvals.extend(["HR", "Legal"])
         rationale.append("Cross-border work requires HR and Legal review.")
+    if facts.get("vendor_contract_renewal") or facts.get("active_rfp"):
+        approvals.extend(["Compliance", "Legal"])
+        rationale.append("Vendor contract renewal or active RFP periods require Compliance review.")
 
     state["policy_decision"] = "Escalate"
     state["risk_level"] = "High"

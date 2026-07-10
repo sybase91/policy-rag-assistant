@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from agent.policy_rule_extractor import build_rationale_from_rules, summarize_rules_for_explanation
+from agent.policy_rule_extractor import build_rationale_from_rules, extract_policy_rules, summarize_rules_for_explanation
 
 
 def build_policy_explanation(
@@ -13,6 +13,11 @@ def build_policy_explanation(
     """Build state fields for policy_explanation answer type."""
     policy_area = scenario_facts.get("policy_area", "general")
     rules = summarize_rules_for_explanation(extracted_rules, policy_area)
+    if not rules and retrieved_chunks:
+        rules = summarize_rules_for_explanation(
+            extract_policy_rules(retrieved_chunks),
+            policy_area,
+        )
     rationale = build_rationale_from_rules(rules)
 
     area_titles = {
@@ -28,6 +33,11 @@ def build_policy_explanation(
     confidence = 0.55
     if retrieved_chunks:
         confidence = min(0.85, 0.5 + len(rules) * 0.05)
+    else:
+        rationale = rationale or [
+            "No relevant policy sections were retrieved for this topic. "
+            "Confirm whether a policy exists before relying on this summary."
+        ]
 
     return {
         "policy_decision": "",

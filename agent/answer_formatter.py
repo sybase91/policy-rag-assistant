@@ -95,6 +95,7 @@ def format_policy_explanation_answer(state: AgentState, style: str | None = None
     title = state.get("explanation_title") or "Policy overview"
     confidence = float(state.get("confidence") or 0.0)
     policy_basis = state.get("policy_basis") or state.get("extracted_policy_rules", [])
+    retrieved = state.get("retrieved_chunks") or []
 
     lines = [
         f"Topic: {title}",
@@ -103,6 +104,12 @@ def format_policy_explanation_answer(state: AgentState, style: str | None = None
         "",
         "Summary:",
     ]
+
+    if not retrieved and not policy_basis:
+        lines.append(
+            "- No relevant policy sections were found in the Acme Corp corpus for this topic. "
+            "Do not assume a policy exists without verified documentation."
+        )
 
     rationale = state.get("rationale_bullets", [])[:4]
     if rationale:

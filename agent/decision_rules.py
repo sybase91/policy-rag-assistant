@@ -33,7 +33,7 @@ def _base_confidence(
 def _blocked(decision: str, blocking_missing_info: list[str], chunks: list[dict]) -> str:
     if not blocking_missing_info:
         return decision
-    if BLOCKING_EVIDENCE in blocking_missing_info or not chunks:
+    if not chunks:
         return "Needs more information"
     essential_blockers = {"amount", "gift value", "type of data"}
     if any(item in blocking_missing_info for item in essential_blockers):
@@ -103,6 +103,7 @@ def evaluate_reimbursement_case(
     if scenario_facts.get("alcohol_mentioned"):
         approvals.append("Finance")
         fallback.append("TE-006 says alcohol requires Finance pre-approval and separate itemization.")
+        decision = "Needs approval"
 
     rationale = _rules_or_default(extracted_policy_rules, scenario_facts, fallback)
     decision = _blocked(decision, blocking_missing_info, retrieved_chunks)
@@ -159,6 +160,36 @@ def evaluate_gift_case(
             "required_approvals": ["Legal", "Compliance"],
             "policy_basis": select_rules_for_scenario(extracted_policy_rules or [], scenario_facts),
             "decision_factors": {"policy_area": "gifts_hospitality", "public_official": True},
+        }
+
+    if scenario_facts.get("vendor_contract_renewal") or scenario_facts.get("active_rfp"):
+        return {
+            "decision": "Escalate",
+            "risk_level": "High",
+            "confidence": 0.78,
+            "rationale_bullets": _rules_or_default(
+                extracted_policy_rules,
+                scenario_facts,
+                ["GH-016 and AM-010 require Compliance review during vendor contract renewal or active RFP periods."],
+            ),
+            "required_approvals": ["Compliance", "Legal"],
+            "policy_basis": select_rules_for_scenario(extracted_policy_rules or [], scenario_facts),
+            "decision_factors": {"policy_area": "gifts_hospitality", "procurement_risk": True},
+        }
+
+    if scenario_facts.get("cumulative_gifts"):
+        return {
+            "decision": "Needs approval",
+            "risk_level": "Medium",
+            "confidence": _base_confidence(retrieved_chunks, blocking_missing_info, open_questions),
+            "rationale_bullets": _rules_or_default(
+                extracted_policy_rules,
+                scenario_facts,
+                ["GH-006 says cumulative gifts above INR 15,000 from the same counterparty require Compliance review."],
+            ),
+            "required_approvals": ["Compliance"],
+            "policy_basis": select_rules_for_scenario(extracted_policy_rules or [], scenario_facts),
+            "decision_factors": {"policy_area": "gifts_hospitality", "cumulative_gifts": True},
         }
 
     fallback: list[str] = []

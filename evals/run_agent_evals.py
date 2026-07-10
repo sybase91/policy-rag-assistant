@@ -5,50 +5,17 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from agent.graph import run_policy_agent
+from evals.eval_helpers import mock_vectorstore_for_case
 from evals.eval_metrics import aggregate_metrics, score_case
 
 GOLDEN_PATH = ROOT / "evals" / "golden_policy_cases.json"
 RESULTS_PATH = ROOT / "evals" / "latest_eval_results.json"
-
-
-def _mock_chunk(section_id: str, source: str = "acme_policy.md", score: float = 0.84) -> dict:
-    return {
-        "text": f"Policy text for {section_id}.",
-        "source": source,
-        "section": f"{section_id} Example Section",
-        "section_id": section_id,
-        "score": score,
-    }
-
-
-def _mock_vectorstore_for_case(case: dict) -> MagicMock:
-    sections = case.get("must_cite_sections")
-    if sections is None:
-        sections = ["GH-003"]
-    if not sections:
-        chunks = []
-    else:
-        chunks = [_mock_chunk(section_id) for section_id in sections]
-    docs = []
-    for chunk in chunks:
-        doc = MagicMock()
-        doc.page_content = chunk["text"]
-        doc.metadata = {
-            "source_file": chunk["source"],
-            "section_id": chunk["section_id"],
-            "section_title": "Example",
-        }
-        distance = 1.0 - float(chunk["score"])
-        docs.append((doc, distance))
-    vectorstore = MagicMock()
-    vectorstore.similarity_search_with_score.return_value = docs
-    return vectorstore
 
 
 def run_evals(use_langgraph: bool = True) -> dict:
@@ -58,7 +25,7 @@ def run_evals(use_langgraph: bool = True) -> dict:
 
     for case in cases:
         with patch("agent.tools.get_vectorstore") as mock_get_vectorstore:
-            mock_get_vectorstore.return_value = _mock_vectorstore_for_case(case)
+            mock_get_vectorstore.return_value = mock_vectorstore_for_case(case)
             state = run_policy_agent(
                 case["query"],
                 use_langgraph=use_langgraph,

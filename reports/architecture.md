@@ -2,170 +2,122 @@
 
 ## System Overview
 
-PolicyOps Agent is a dual-mode assistant:
+The app has two modes in one Streamlit UI:
 
-- **Standard RAG Chat** — grounded Q&A over public AI governance PDFs
-- **PolicyOps Agent** — LangGraph-orchestrated scenario review over synthetic Acme Corp workplace policies
+1. **Standard RAG Chat** — Q&A over public NIST/OWASP AI governance PDFs (`src/` pipeline).
+2. **PolicyOps Agent** — LangGraph workflow over synthetic Acme Corp policies (`agent/` pipeline) with structured decisions, policy basis, citations, and trace.
 
-Both modes share the same Chroma vector store but use separate Streamlit thread stores.
-
-## Component Diagram
+## High-Level Architecture
 
 ```mermaid
 flowchart TD
-    docs[PolicyDocuments] --> chunking[Chunking]
+    docs[PolicyAndGovernanceDocs] --> chunking[Chunking]
     chunking --> embeddings[Embeddings]
-    embeddings --> vectorstore[VectorStore]
-    vectorstore --> retriever[Retriever]
+    embeddings --> vectorStore[VectorStore]
+    vectorStore --> retriever[Retriever]
     retriever --> langgraph[LangGraphAgent]
-    langgraph --> decisionRules[DecisionRules]
-    langgraph --> citationVerifier[CitationVerifier]
-    langgraph --> memoryLayer[ThreadMemory]
-  decisionRules --> finalAnswer[FinalAnswer]
-    citationVerifier --> finalAnswer
-    finalAnswer --> streamlitUI[StreamlitUI]
-    langgraph --> evalRunner[EvaluationRunner]
+    langgraph --> ruleExtractor[PolicyRuleExtractor]
+    ruleExtractor --> decisionEngine[DecisionEngine]
+    decisionEngine --> citationVerifier[CitationVerifier]
+    citationVerifier --> answerFormatter[AnswerFormatter]
+    answerFormatter --> streamlitUI[StreamlitUI]
+    langgraph --> memory[Memory]
+    langgraph --> evalHarness[EvalHarness]
 ```
 
-## Agent Graph (Phase 3.5)
+## Agent Workflow
 
 ```mermaid
 flowchart TD
-    startNode[START] --> initState[InitializeState]
-    initState --> intentNode[ClassifyIntent]
-    intentNode --> parseNode[HybridParseScenario]
-    parseNode --> memoryNode[MergeThreadMemory]
-    memoryNode --> answerTypeNode[ClassifyAnswerType]
-    answerTypeNode --> retrieveNode[RetrievePolicy]
-    retrieveNode --> extractRulesNode[ExtractPolicyRules]
-    extractRulesNode --> missingNode[CheckMissingInfo]
-    missingNode --> routerNode{Route}
-    routerNode -->|explain| explainNode[BuildPolicyExplanation]
-    routerNode -->|blocking| clarifyNode[ProvisionalClarify]
-    routerNode -->|ready| decideNode[MakePolicyDecision]
-    routerNode -->|highRisk| escalateNode[EscalationReview]
-    explainNode --> verifyNode[VerifyCitations]
-    clarifyNode --> verifyNode
-    decideNode --> verifyNode
-    escalateNode --> verifyNode
-    verifyNode --> clarifyQ[GenerateClarifyingQuestion]
-    clarifyQ --> nextNode[GenerateNextSteps]
-    nextNode --> formatNode[FormatFinalAnswerByType]
-    formatNode --> saveNode[SaveThreadMemory]
-    saveNode --> endNode[END]
+    userQuery[UserQuery] --> answerRouting[AnswerTypeRouting]
+    answerRouting --> scenarioParsing[ScenarioParsing]
+    scenarioParsing --> memoryMerge[MemoryMerge]
+    memoryMerge --> retrieval[Retrieval]
+    retrieval --> ruleExtraction[RuleExtraction]
+    ruleExtraction --> router{Router}
+    router -->|explain| explanation[PolicyExplanation]
+    router -->|decide| decision[ScenarioDecision]
+    router -->|clarify| clarify[ProvisionalClarify]
+    router -->|escalate| escalate[EscalationReview]
+    explanation --> verify[CitationVerification]
+    decision --> verify
+    clarify --> verify
+    escalate --> verify
+    verify --> finalAnswer[FinalAnswer]
 ```
 
-**Data flow:** Acme mock policies → `ingest_policies` → Chroma → retrieve → `extract_policy_rules` → decision/answer formatters.
+## Core Components
 
-**Routing rules (`agent/routing.py`):**
-
-| Route | Condition |
-|-------|-----------|
-| `explain` | `answer_type == policy_explanation` |
-| `escalate` | Public official, cash gift, cross-border work, or sensitive external data sharing |
-| `clarify` | Blocking missing information, or `insufficient_context` answer type |
-| `decide` | Scenario decisions and clarification follow-ups |
+| Component | Role |
+|-----------|------|
+| Ingestion | `scripts/ingest_mock_policies.py` chunks Acme policies by section ID |
+| Retriever | `agent/tools.py` similarity search over Chroma |
+| LangGraph workflow | `agent/langgraph_workflow.py` orchestrates nodes and routing |
+| LLM parser | `agent/llm_parser.py` optional scenario enrichment with heuristic fallback |
+| Memory | `agent/memory.py` merges thread facts and follow-up replies |
+| Policy rule extractor | `agent/policy_rule_extractor.py` structured rules from chunks |
+| Decision engine | `agent/decision_rules.py` deterministic thresholds and approvals |
+| Citation verifier | `agent/citation_verifier.py` citations subset of retrieved chunks |
+| Answer formatter | `agent/answer_formatter.py` type-specific output (explanation vs decision) |
+| Evaluation dashboard | Streamlit Evaluations tab + `evals/` runners |
 
 ## State Schema
-
-Key `AgentState` / `GraphState` fields:
 
 | Field | Purpose |
 |-------|---------|
 | `user_query` | Current user message |
-| `conversation_history` | Prior thread messages |
-| `previous_scenario_facts` | Facts from last turn |
 | `merged_scenario_facts` | Combined facts after memory merge |
-| `parser_mode` | `heuristic`, `hybrid`, or `llm` |
-| `router_path` | `decide`, `clarify`, or `escalate` |
-| `blocking_missing_info` | Details that prevent a useful decision |
-| `open_questions` | Non-blocking follow-up questions |
-| `policy_decision` | Allowed / Not allowed / Needs approval / Needs more information / Escalate |
-| `verified_citations` | Citations from retrieved chunks only |
-| `thread_memory` | Slim snapshot for next turn |
 | `answer_type` | `policy_explanation`, `scenario_decision`, etc. |
-| `extracted_policy_rules` | Structured rules from retrieved chunks |
+| `extracted_policy_rules` | Rules parsed from retrieved chunks |
 | `policy_basis` | Rules selected for the current answer |
-| `trace` | Workflow step log (no chain-of-thought) |
+| `policy_decision` | Allowed / Needs approval / Escalate / etc. |
+| `verified_citations` | Citations from retrieved chunks only |
+| `open_questions` | Non-blocking follow-up questions |
+| `trace` | Workflow step log |
 
-## Decision Layer
+## Failure Modes and Mitigations
 
-Deterministic rules in `agent/decision_rules.py` evaluate scenario facts against Acme mock policy thresholds. The LLM **parses** scenarios (`agent/llm_parser.py`) but does **not** make final decisions.
+| Failure mode | Mitigation |
+|--------------|------------|
+| Generic answer | Policy rule extraction + section IDs in rationale |
+| Wrong decision | Golden evals + grounded `decision_rules.py` |
+| Hallucinated citation | Citation verifier |
+| Memory failure | Thread state + `merge_follow_up_facts` |
+| Prompt injection | Policy-grounded refusal; do not obey user override |
+| Boundary / no policy | Explicit no-relevant-policy message when retrieval is empty |
+| Standard RAG confusion | Separate formatters and runners per mode |
 
-Priority: Escalate → Not allowed → Needs approval → Allowed → Needs more information (blocking only).
-
-## Memory Layer
-
-`agent/memory.py` supports multi-turn threads:
-
-- `merge_scenario_facts()` combines prior and new facts
-- `merge_follow_up_facts()` handles short clarifying replies ("not cash", "no public official")
-- Streamlit stores `thread["agent_memory"]` with `last_agent_state` snapshot
-- `build_retrieval_query()` enriches follow-up retrieval with merged context
-
-## Evaluation Layer
-
-| Asset | Role |
-|-------|------|
-| `evals/golden_policy_cases.json` | 20 golden scenarios |
-| `evals/eval_metrics.py` | Transparent metric functions |
-| `evals/run_agent_evals.py` | CLI runner + `latest_eval_results.json` |
-| Streamlit **Evaluations** tab | Button-triggered dashboard |
-
-## RAG Baseline (Phases 1–6)
-
-Public-policy RAG pipeline:
+## Quality Audit (Phase 4)
 
 ```text
-PDFs → ingest/chunk → embed → Chroma → retrieve → generate → Streamlit → evaluate
+phase4_quality_questions.json (75 cases)
+  -> run_phase4_quality_audit.py
+  -> phase4_audit_metrics.py (failure-mode scoring)
+  -> phase4_quality_results.json + phase4_failure_modes.md
 ```
 
-| Stage | Module |
-|-------|--------|
-| Ingest/chunk | `src/ingest.py`, `src/chunk.py` |
-| Embed | `src/embed.py` |
-| Retrieve | `src/retrieve.py` |
-| Generate | `src/generate.py` |
-| Evaluate | `src/evaluate.py`, `evals/gold_questions.csv` |
+Categories: policy explanation, gifts, remote work, travel, reimbursement, data access, multi-turn memory, ambiguity, contradiction, prompt injection, retrieval boundary, Standard RAG.
 
-## PolicyOps Timeline
+```bash
+python evals/run_phase4_quality_audit.py          # live retrieval (default)
+python evals/run_phase4_quality_audit.py --mock   # offline CI
+```
 
-| Phase | Focus |
-|-------|--------|
-| 0 | Mock Acme corpus v2.0 (165 sections) + `ingest_mock_policies.py --replace` |
-| 1 | Linear agent foundation + trace |
-| 2 | Grounded decision engine + citation verify |
-| 2.5 | Answer quality calibration + compact UI |
-| 3 | LangGraph + LLM parsing + memory + eval dashboard |
+Golden regression evals (20 cases) remain in `evals/run_agent_evals.py`.
 
-## Failure Modes
+## RAG Baseline
 
-| Failure | Handling |
-|---------|----------|
-| No relevant retrieval | Blocking missing info → clarify path |
-| Low citation coverage | Confidence lowered; may downgrade decision |
-| LLM parser failure | Fallback to heuristic parser |
-| Conflicting policy signals | Conservative decision + escalation |
-| Missing blocking information | Provisional "Needs more information" |
-| Overly broad query | General policy evaluator or clarify |
-
-## Configuration
-
-`src/config.py`:
-
-- `USE_LANGGRAPH`, `USE_LLM_PARSER`, `LLM_PARSER_MODEL`, `THREAD_PERSISTENCE`
-- `CHROMA_PERSIST_DIR`, `CHAT_MODEL`, `EMBEDDING_MODEL`
-
-## Security Notes
-
-- `.env` is gitignored; only `.env.example` is committed
-- OpenAI calls require a local API key
-- Synthetic Acme policies are demo-only
+Standard RAG uses `src/retrieve.py` and `src/generate.py` over NIST/OWASP documents. Legacy v0.1 eval: `src/evaluate.py` -> `reports/evaluation_report.md`.
 
 ## Future Architecture
 
-- Human approval workflows and guardrail service
-- Observability (tracing, metrics, alerting)
-- Production database for threads and audit logs
-- Authentication and multi-user deployment
-- Enterprise integrations (Slack, Teams, Jira, ServiceNow)
+- Human approval workflow and case database
+- Audit logs and observability
+- Authentication and multi-tenant support
+- Enterprise integrations (ticketing, ERP, identity)
+
+## Security Notes
+
+- API keys via environment variables only; never committed.
+- Citations restricted to retrieved chunks.
+- Synthetic policies only; not production legal or compliance advice.

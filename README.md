@@ -1,167 +1,103 @@
 # PolicyOps Agent
 
-## 1. What This Is
+## What This Project Is
 
-PolicyOps Agent is an **agentic RAG system** for workplace policy decisions. It supports two modes in one Streamlit app:
+Enterprise AI proof-of-work project demonstrating two assistant modes in one Streamlit app: **Standard RAG Chat** over public AI governance documents (NIST, OWASP), and **PolicyOps Agent** for scenario-based workplace policy review over a synthetic Acme Corp corpus. The agent uses LangGraph orchestration, multi-turn memory, policy rule extraction, deterministic decision rules, citation verification, and an evaluation harness with a Phase 4 quality audit loop.
 
-- **Standard RAG Chat** — direct Q&A over public AI governance documents
-- **PolicyOps Agent** — scenario-based policy review with structured decisions, citations, memory, and evaluation
+## Demo Modes
 
-The system uses document ingestion, chunking, embeddings, vector retrieval, LangGraph orchestration, deterministic decision rules, citation verification, multi-turn thread memory, and a golden-case evaluation dashboard.
-
-## 2. Why I Built This
-
-Basic RAG demos are common. Enterprise AI reviewers look for more:
-
-- Grounded answers with verifiable citations
-- Traceable agent workflows (not black-box chat)
-- Structured decisions with risk and confidence
-- Multi-turn clarification and memory
-- Evaluation before adding complexity
-- Clear separation between document Q&A and decision scenarios
-
-This project shows how a policy assistant can evolve from a simple RAG chatbot into an **evaluation-ready agentic decision-support system**.
-
-## 3. Demo Modes
-
-| Mode | Best for | Output |
+| Mode | Use case | Output |
 |------|----------|--------|
-| **Standard RAG Chat** | Direct knowledge-base questions | Grounded answer + PDF sources |
-| **PolicyOps Agent** | Workplace policy scenarios | Decision, risk, confidence, citations, trace, next steps |
+| Standard RAG Chat | Knowledge-base Q&A | Source-grounded answer with citations |
+| PolicyOps Agent | Workplace policy scenario review | Decision (or policy explanation), policy basis, approvals, citations, trace |
 
-Each mode uses **separate chat threads** so histories never mix.
-
-## 4. Architecture at a Glance
-
-**RAG pipeline:**
+## Architecture at a Glance
 
 ```text
-Documents → Chunks → Embeddings → Vector Store → Retriever → Answer
+Documents -> Chunks -> Embeddings -> Vector Store -> Retriever
+  -> LangGraph Agent -> Policy Rule Extractor -> Decision Engine
+  -> Citation Verifier -> Answer Formatter -> Eval Dashboard
 ```
 
-**Agent pipeline (Phase 3.5):**
+## Phase Summary
 
-```text
-User Scenario → Intent → Hybrid Parser → Memory Merge → Answer-Type Routing
-→ Retrieval → Policy Rule Extraction → Missing Info Check → Router
-→ Policy Explanation / Decision / Clarify / Escalate
-→ Citation Verification → Type-Specific Formatter → Thread Memory
-```
+| Phase | What was built | Key files |
+|-------|----------------|-----------|
+| 0 | Synthetic Acme policy corpus | `data/policies/mock/` |
+| 1 | Agent foundation | `agent/state.py`, `agent/nodes.py` |
+| 2 | Grounded decision engine | `agent/decision_rules.py` |
+| 2.5 | Answer and citation UI cleanup | `agent/answer_formatter.py` |
+| 3 | LangGraph, memory, golden evals | `agent/langgraph_workflow.py`, `evals/` |
+| 3.5 | Corpus enrichment and grounded answers | `agent/policy_rule_extractor.py`, `agent/answer_routing.py` |
+| 4 | Quality audit and failure-mode plan | `evals/run_phase4_quality_audit.py`, `reports/phase4_failure_modes.md` |
 
-```mermaid
-flowchart LR
-    docs[Documents] --> chunks[Chunks]
-    chunks --> embed[Embeddings]
-    embed --> chroma[VectorStore]
-    chroma --> retrieve[Retriever]
-    retrieve --> langgraph[LangGraphAgent]
-    langgraph --> rules[DecisionRules]
-    langgraph --> cite[CitationVerifier]
-    rules --> answer[FinalAnswer]
-    cite --> answer
-    answer --> ui[StreamlitUI]
-    langgraph --> evals[EvaluationRunner]
-```
+## Synthetic Acme Policy Corpus
 
-## 5. Phase-by-Phase Build
+Fictional Acme Corp policies for demo-safe RAG and agent evaluation (not legal, HR, finance, or compliance advice).
 
-| Phase | What changed | Why it mattered | Key files |
-|-------|--------------|-----------------|-----------|
-| **0** | Synthetic Acme Corp policies + ingest | Enterprise-style mock corpus (v2.0) | `data/policies/mock/`, `scripts/ingest_mock_policies.py` |
+| Policy | Covers |
+|--------|--------|
+| Approval Matrix | Cross-functional approvals |
+| Gifts and Hospitality | Thresholds, public officials, procurement blackout |
+| Travel and Expense | Meals, lodging, alcohol, upgrades |
+| Reimbursement | Claims, receipts, late submissions |
+| Remote Work | Short-term, medical, cross-border |
+| Data Access | Classification, external sharing, AI tools |
 
-## Synthetic Acme Corp Policy Corpus
-
-The files in `data/policies/mock/` are **fictional** policies for Acme Corp (not a real company). They are designed to simulate the complexity of a large global enterprise for RAG retrieval, policy-rule extraction, and agent evaluation.
-
-They are inspired by public guidance and common enterprise practices (see `data/policies/source_references.md`) but are **original synthetic text** — not legal, HR, finance, tax, or compliance advice.
-
-| Policy | What it covers |
-|--------|----------------|
-| Approval Matrix | Cross-functional approval routing (AM-001–AM-020) |
-| Gifts and Hospitality | Thresholds, cash prohibitions, public officials, procurement blackout (GH-001–GH-025) |
-| Travel and Expense | Travel, client meals, lodging, alcohol, upgrades (TE-001–TE-030) |
-| Reimbursement | Claims, receipts, missing receipts, late submissions (RE-001–RE-025) |
-| Remote Work | Short-term, extended, medical, cross-border remote work (RW-001–RW-030) |
-| Data Access | Classification, least privilege, external sharing, AI tools (DA-001–DA-035) |
-
-After editing policy files, re-ingest with:
+Re-ingest after corpus edits:
 
 ```bash
 python scripts/ingest_mock_policies.py --replace
 ```
-| **1** | Agent foundation, trace, Streamlit Agent Mode | Structured workflow over retrieval | `agent/state.py`, `agent/nodes.py`, `agent/graph.py` |
-| **2** | Grounded decision engine, citation verify | Auditable structured decisions | `agent/decision_rules.py`, `agent/citation_verifier.py` |
-| **2.5** | Answer quality + UI cleanup | Useful decisions vs over-blocking | `agent/answer_formatter.py`, blocking vs open questions |
-| **3** | LangGraph, LLM parsing, memory, evals | Stateful enterprise-grade agent | `agent/langgraph_workflow.py`, `agent/memory.py`, `evals/` |
-| **3.5** | Corpus enrichment + grounded answer quality | Answer-type routing, rule extraction, policy basis in answers | `agent/answer_routing.py`, `agent/policy_rule_extractor.py`, `agent/answer_formatter.py` |
 
-### Phase 3.5 answer quality
+## How It Works
 
-Phase 3.5b adds answer-type routing so informational questions (e.g. "What is the work from home policy?") use a **policy explanation** path instead of a decision card. Retrieved chunks are parsed into structured **policy rules** that feed decision rationale, policy basis sections, and expanded eval metrics.
+1. Policy documents are ingested into Chroma with section-level metadata.
+2. The user asks a question in Standard RAG or PolicyOps mode.
+3. PolicyOps classifies the answer type (explanation vs scenario decision).
+4. The retriever finds relevant policy sections.
+5. The policy rule extractor turns chunks into structured rules.
+6. The decision engine applies deterministic rules to scenario facts.
+7. The citation verifier ensures only retrieved sections are cited.
+8. The answer formatter produces a readable response by answer type.
+9. The eval dashboard and Phase 4 audit measure quality and failure modes.
 
-Answer types: `policy_explanation`, `scenario_decision`, `clarification_followup`, `escalation_guidance`, `insufficient_context`.
+## Key Technical Concepts
 
-```bash
-python -m unittest tests.test_phase35_agent -v
-python evals/run_agent_evals.py
-```
+- **RAG** — Retrieve relevant chunks before answering instead of guessing from training data.
+- **Embeddings** — Vector representations of text for similarity search.
+- **Vector DB** — Chroma stores embedded policy chunks.
+- **LangGraph** — Stateful workflow graph with conditional routing.
+- **Agent state** — Shared memory for facts, decisions, citations, and trace per turn.
+- **Memory** — Merges prior scenario facts with follow-up user replies.
+- **Policy rule extraction** — Deterministic parsing of thresholds and approvals from chunks.
+- **Citation verification** — Citations must come from retrieved chunks only.
+- **Eval harness** — Golden cases plus Phase 4 quality audit with failure-mode taxonomy.
 
-## 6. Key Technical Concepts
-
-- **RAG** — Retrieve relevant chunks, then generate or reason over them instead of guessing from training data.
-- **Chunking** — Split documents into searchable segments with metadata like section IDs.
-- **Embeddings** — Convert text into vectors for similarity search.
-- **Vector database** — Chroma stores embeddings for fast retrieval.
-- **Agent state** — Shared memory for one agent run (facts, decision, citations, trace).
-- **LangGraph** — Stateful graph orchestration with conditional routing between nodes.
-- **Tool use** — Deterministic functions for parsing, retrieval, missing-info checks, and next steps.
-- **Conditional routing** — Route to clarify, decide, or escalate based on blocking info and risk flags.
-- **Structured outputs** — Hybrid heuristic + optional LLM parsing into typed scenario fields.
-- **Citation verification** — Only cite chunks that were actually retrieved.
-- **Memory** — Merge prior scenario facts with follow-up user replies in the same thread.
-- **Evals** — Golden cases with transparent metrics for decision and citation quality.
-- **Guardrails** — LLM parses scenarios; deterministic rules make final decisions.
-
-## 7. Key Architectural Decisions
-
-- **Synthetic policies** instead of real company data for safe portfolio demos
-- **Deterministic rules + LLM-assisted parsing** — LLM does not make the final decision
-- **Citations must come from retrieved chunks** — never invented section IDs
-- **Blocking vs open questions** — secondary missing details do not always block useful decisions
-- **LangGraph** for stateful orchestration and routing
-- **Streamlit** for portfolio-friendly UI with separated threads and tabs
-- **Eval dashboard** to demonstrate quality thinking before production scale
-
-## 8. How To Run
+## How to Run
 
 ```bash
-git clone https://github.com/sybase91/policy-rag-assistant.git
-cd policy-rag-assistant
-python3 -m venv .venv
-source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env
-# Add your OPENAI_API_KEY to .env
-
-python -m src.embed --rebuild
 python scripts/ingest_mock_policies.py --replace
 streamlit run app/streamlit_app.py
-```
-
-**Agent tests and evals:**
-
-```bash
-python -m unittest tests.test_phase2_agent tests.test_phase3_agent -v
 python evals/run_agent_evals.py
+python evals/run_phase4_quality_audit.py
+python -m unittest tests.test_phase2_agent tests.test_phase3_agent tests.test_phase35_agent tests.test_phase4_audit -v
 ```
 
-**Optional env flags** (see `.env.example`):
+Set `OPENAI_API_KEY` in `.env` for embeddings and optional LLM parsing. Live Phase 4 audit requires an ingested corpus and API access.
 
-- `USE_LANGGRAPH=true`
-- `USE_LLM_PARSER=true`
-- `LLM_PARSER_MODEL=gpt-4o-mini`
+## Example Questions
 
-## 9. Example Questions
+**PolicyOps Agent**
+
+- What is the work from home policy?
+- Can I accept an INR 5,000 gift from a vendor?
+- Can I accept an INR 12,000 gift from a vendor?
+- Am I allowed to work from home for two weeks with manager approval?
+- Can I share customer data with an external vendor?
+- I lost my receipt for a taxi ride. Can I still claim reimbursement?
+- Can I reimburse a client dinner for INR 18,000?
 
 **Standard RAG Chat**
 
@@ -169,71 +105,35 @@ python evals/run_agent_evals.py
 - What are the core functions of the NIST AI RMF?
 - What risks are specific to generative AI systems?
 
-**PolicyOps Agent**
+## Evaluation and Quality
 
-- Can I accept an INR 12,000 gift from a vendor?
-- Can I reimburse a client dinner for INR 18,000 if two external guests attended and I paid with my own card?
-- Can I share customer data with an external vendor for analysis?
-
-**Multi-turn follow-up**
-
-1. Can I accept an INR 12,000 gift from a vendor?
-2. It is not cash and no public official is involved.
-
-## 10. Evaluation
-
-Golden cases live in `evals/golden_policy_cases.json` (18 scenarios).
-
-**Metrics:** decision accuracy, risk accuracy, approval match, citation presence, must-cite hit rate, open-question relevance, retrieval hit rate, average confidence, escalation precision.
+- **Golden evals** (`evals/golden_policy_cases.json`, 20 cases) — regression gate for decisions, citations, and answer types.
+- **Phase 4 quality audit** (`evals/phase4_quality_questions.json`, 75 cases) — comprehensive failure-mode testing across explanation, scenario, multi-turn, injection, boundary, and Standard RAG separation.
+- **Failure-mode report** — generated at `reports/phase4_failure_modes.md` after each audit run.
+- **Legacy NIST RAG baseline** — see `reports/evaluation_report.md` (v0.1, 10 questions).
 
 ```bash
-python evals/run_agent_evals.py
+python evals/run_phase4_quality_audit.py          # live retrieval
+python evals/run_phase4_quality_audit.py --mock   # offline / CI
 ```
 
-Results are saved to `evals/latest_eval_results.json` and viewable in the Streamlit **Evaluations** tab.
+## Known Limitations
 
-**Interpreting failures:** compare expected vs actual decision/risk in the failed-cases expander. Loosen golden expectations or improve rules/retrieval for recurring misses.
+- Synthetic Acme policies only; not legal, HR, finance, or tax advice.
+- No real approval workflow integration or case management.
+- No authentication or multi-tenant SaaS features.
+- Simplified deterministic decision rules; complex prose may need LLM polish.
+- LLM scenario parsing can fail and fall back to heuristics.
+- Live retrieval requires OpenAI embeddings and a local Chroma index.
 
-## 11. Known Limitations
+## Roadmap
 
-- Synthetic Acme Corp policies — not legal, HR, finance, or compliance advice
-- LLM parsing may fail and falls back to heuristics
-- Thread memory is per browser session (optional JSON persistence via `THREAD_PERSISTENCE`)
-- Eval set is small but useful; retrieval is mocked in CI eval runner
-- Decision rules are simplified portfolio logic, not production policy engines
-- No authentication, multi-user SaaS, or production observability
-
-## 12. Lessons Learned / Pitfalls
-
-- RAG alone is not enough for decision workflows — structure and rules matter
-- Missing information should not always block a useful provisional answer
-- Citation formatting affects trust as much as retrieval quality
-- Memory is essential for clarifying-question follow-ups
-- Evals should exist before adding more agent complexity
-- UI separation matters when standard chat and agent mode coexist
-
-## 13. Roadmap
-
-- **Phase 4** — Guardrails and human approval workflow
-- **Phase 5** — Deployment, monitoring, and analytics
-- **Phase 6** — Enterprise integrations (Slack, Teams, Jira, ServiceNow)
-
----
+- Human-in-the-loop approval queue
+- Case management and audit logs
+- Prompt-injection and boundary guardrails
+- Observability and production monitoring
+- Enterprise integrations (ServiceNow, SAP, identity providers)
 
 ## Safety Note
 
-- Keep your OpenAI API key only in local `.env`
-- Never commit `.env`
-- `data/processed/` is gitignored (Chroma database)
-- Acme Corp policies are fictional demo content
-
-## Appendix: NIST RAG Baseline
-
-The repo also includes a full NIST/OWASP RAG baseline (ingest, embed, retrieve, generate, evaluate). Use **Standard RAG Chat** in Streamlit or:
-
-```bash
-python -m src.generate
-python -m src.evaluate
-```
-
-See [reports/architecture.md](reports/architecture.md) for technical detail.
+Demo assistant using synthetic Acme Corp policies and public governance documents. Confirm real decisions with the relevant internal team.

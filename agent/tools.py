@@ -143,6 +143,14 @@ def parse_scenario_tool(user_query: str) -> dict:
         facts["cash_gift"] = True
         facts["policy_area"] = "gifts_hospitality"
 
+    if "gift card" in text:
+        facts["cash_gift"] = True
+        facts["policy_area"] = "gifts_hospitality"
+
+    if "three gifts" in text or "this quarter" in text:
+        facts["cumulative_gifts"] = True
+        facts["policy_area"] = "gifts_hospitality"
+
     if "medical" in text:
         facts["medical_reason"] = True
 
@@ -188,6 +196,29 @@ def merge_follow_up_facts(facts: dict, user_query: str) -> dict:
             docs.append("receipt mentioned")
         updated["documentation_provided"] = docs
     if any(phrase in text for phrase in ("manager approved", "already approved", "approved by manager")):
+        updated["approval_status"] = "approved"
+    if any(phrase in text for phrase in ("renewing the vendor contract", "renewing vendor contract", "vendor contract renewal")):
+        updated["vendor_contract_renewal"] = True
+        updated["vendor_or_client_involved"] = True
+    if "active rfp" in text or "during an rfp" in text:
+        updated["active_rfp"] = True
+        updated["vendor_or_client_involved"] = True
+    if any(phrase in text for phrase in ("dubai", "another country", "abroad", "outside the country")):
+        updated["cross_border_work"] = True
+    if "actually" in text or "correction" in text:
+        amount, currency = _parse_amount_and_currency(user_query)
+        if amount is not None:
+            updated["amount"] = amount
+            updated["gift_value"] = amount
+            if currency:
+                updated["currency"] = currency
+    if "anonymized" in text or "aggregate data" in text:
+        updated["data_types"] = list(set((updated.get("data_types") or []) + ["anonymized aggregate"]))
+        updated["sensitive_data_involved"] = False
+    if "sibling" in text or "family" in text:
+        updated["vendor_or_client_involved"] = False
+        updated["personal_gift"] = True
+    if "no manager approval" in text and "now i got it" in text:
         updated["approval_status"] = "approved"
 
     return updated

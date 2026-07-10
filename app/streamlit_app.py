@@ -158,6 +158,8 @@ def initialize_thread_state() -> None:
 
     if "eval_results" not in st.session_state:
         st.session_state.eval_results = None
+    if "phase4_audit_results" not in st.session_state:
+        st.session_state.phase4_audit_results = None
 
 
 def create_new_thread(mode: str) -> str:
@@ -1293,55 +1295,116 @@ def render_evaluations_section() -> None:
 
     results_payload = st.session_state.eval_results
     if not results_payload:
-        st.info("No evaluation results yet. Click **Run agent evals** to generate metrics.")
+        st.info("No golden eval results yet. Click **Run agent evals** to generate metrics.")
+    else:
+        metrics = results_payload.get("metrics", {})
+        col1, col2, col3, col4 = st.columns(4)
+        col1.metric("Total cases", metrics.get("total_cases", 0))
+        col2.metric("Pass rate", f"{metrics.get('pass_rate', 0):.0%}")
+        col3.metric("Decision accuracy", f"{metrics.get('decision_accuracy', 0):.0%}")
+        col4.metric("Citation hit rate", f"{metrics.get('must_cite_hit_rate', 0):.0%}")
+
+        col5, col6, col7 = st.columns(3)
+        col5.metric("Risk accuracy", f"{metrics.get('risk_level_accuracy', 0):.0%}")
+        col6.metric("Approval match", f"{metrics.get('required_approval_match', 0):.0%}")
+        col7.metric("Avg confidence", f"{metrics.get('average_confidence', 0):.2f}")
+
+        rows = []
+        for item in results_payload.get("results", []):
+            rows.append(
+                {
+                    "id": item["id"],
+                    "passed": item["checks"]["passed"],
+                    "expected_decision": item["expected"]["decision"],
+                    "actual_decision": item["actual"]["decision"],
+                    "expected_risk": item["expected"]["risk_level"],
+                    "actual_risk": item["actual"]["risk_level"],
+                    "confidence": item["actual"].get("confidence"),
+                }
+            )
+        if rows:
+            st.markdown("#### Golden eval results")
+            st.dataframe(rows, use_container_width=True)
+
+        failed = [item for item in results_payload.get("results", []) if not item["checks"]["passed"]]
+        with st.expander(f"Golden failed cases ({len(failed)})", expanded=False):
+            if not failed:
+                st.success("All golden cases passed.")
+            for item in failed:
+                st.markdown(f"**{item['id']}** — {item['query']}")
+                st.write(
+                    f"Expected decision: `{item['expected']['decision']}` | "
+                    f"Actual: `{item['actual']['decision']}`"
+                )
+
+    st.divider()
+    st.subheader("Phase 4 Quality Audit")
+    st.caption(
+        "Comprehensive 75-case audit across explanation, scenario, multi-turn, injection, "
+        "boundary, and Standard RAG modes. Uses live retrieval unless mock mode is selected."
+    )
+    mock_mode = st.checkbox("Use mock retrieval (faster, offline)", value=False)
+    skip_rag = st.checkbox("Skip Standard RAG cases", value=False)
+
+    if st.button("Run Phase 4 Quality Audit"):
+        with st.spinner("Running Phase 4 quality audit (this may take several minutes)..."):
+            from evals.run_phase4_quality_audit import run_phase4_audit
+
+            st.session_state.phase4_audit_results = run_phase4_audit(
+                use_mock=mock_mode,
+                skip_standard_rag=skip_rag,
+            )
+
+    phase4_payload = st.session_state.phase4_audit_results
+    if not phase4_payload:
+        st.info("No Phase 4 audit results yet. Click **Run Phase 4 Quality Audit**.")
         return
 
-    metrics = results_payload.get("metrics", {})
-    col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Total cases", metrics.get("total_cases", 0))
-    col2.metric("Pass rate", f"{metrics.get('pass_rate', 0):.0%}")
-    col3.metric("Decision accuracy", f"{metrics.get('decision_accuracy', 0):.0%}")
-    col4.metric("Citation hit rate", f"{metrics.get('must_cite_hit_rate', 0):.0%}")
+    p4_metrics = phase4_payload.get("metrics", {})
+    c1, c2, c3, c4, c5, c6 = st.columns(6)
+    c1.metric("Total cases", p4_metrics.get("total_cases", 0))
+    c2.metric("Pass rate", f"{p4_metrics.get('pass_rate', 0):.0%}")
+    c3.metric("Average score", p4_metrics.get("average_score", 0))
+    c4.metric("Top failure mode", p4_metrics.get("top_failure_mode", "none"))
+    c5.metric("Wrong answer type", p4_metrics.get("wrong_answer_type_count", 0))
+    c6.metric("Missing citations", p4_metrics.get("missing_citations_count", 0))
 
-    col5, col6, col7 = st.columns(3)
-    col5.metric("Risk accuracy", f"{metrics.get('risk_level_accuracy', 0):.0%}")
-    col6.metric("Approval match", f"{metrics.get('required_approval_match', 0):.0%}")
-    col7.metric("Avg confidence", f"{metrics.get('average_confidence', 0):.2f}")
-
-    rows = []
-    for item in results_payload.get("results", []):
-        rows.append(
+    p4_rows = []
+    for item in phase4_payload.get("results", []):
+        p4_rows.append(
             {
                 "id": item["id"],
-                "passed": item["checks"]["passed"],
-                "expected_decision": item["expected"]["decision"],
-                "actual_decision": item["actual"]["decision"],
-                "expected_risk": item["expected"]["risk_level"],
-                "actual_risk": item["actual"]["risk_level"],
-                "confidence": item["actual"].get("confidence"),
+                "category": item.get("category"),
+                "score": item["score"]["score"],
+                "passed": item["score"]["passed"],
+                "failure_modes": ", ".join(item["score"]["failure_modes"][:3]),
+                "expected_decision": item["score"]["expected"].get("decision"),
+                "actual_decision": item["score"]["actual"].get("decision"),
             }
         )
-    if rows:
-        st.markdown("#### Results table")
-        st.dataframe(rows, use_container_width=True)
+    if p4_rows:
+        st.markdown("#### Phase 4 audit results")
+        st.dataframe(p4_rows, use_container_width=True)
 
-    failed = [item for item in results_payload.get("results", []) if not item["checks"]["passed"]]
-    with st.expander(f"Failed cases ({len(failed)})", expanded=bool(failed)):
-        if not failed:
-            st.success("All cases passed.")
-        for item in failed:
-            st.markdown(f"**{item['id']}** — {item['query']}")
-            st.write(
-                f"Expected decision: `{item['expected']['decision']}` | "
-                f"Actual: `{item['actual']['decision']}`"
-            )
-            st.write(
-                f"Expected risk: `{item['expected']['risk_level']}` | "
-                f"Actual: `{item['actual']['risk_level']}`"
-            )
+    p4_failed = [item for item in phase4_payload.get("results", []) if not item["score"]["passed"]]
+    with st.expander(f"Phase 4 failed cases ({len(p4_failed)})", expanded=bool(p4_failed)):
+        if not p4_failed:
+            st.success("All Phase 4 cases passed.")
+        for item in p4_failed[:20]:
+            st.markdown(f"**{item['id']}** ({item.get('category')})")
+            st.write("**Question:**", item.get("query") or item.get("turns", [""])[-1])
+            st.write("**Expected:**", item["score"]["expected"])
+            st.write("**Actual:**", item["score"]["actual"])
+            if item["score"].get("missing_concepts"):
+                st.write("**Missing concepts:**", item["score"]["missing_concepts"])
+            st.write("**Failure modes:**", item["score"]["failure_modes"])
+            st.write("**Answer excerpt:**", item["score"].get("answer_excerpt", "")[:400])
+            if item["score"].get("suggested_fixes"):
+                st.caption("Suggested fixes: " + "; ".join(item["score"]["suggested_fixes"]))
+            st.divider()
 
-    with st.expander("Individual case details", expanded=False):
-        for item in results_payload.get("results", []):
+    with st.expander("Phase 4 case details (JSON)", expanded=False):
+        for item in phase4_payload.get("results", []):
             st.markdown(f"**{item['id']}**")
             st.json(item)
 

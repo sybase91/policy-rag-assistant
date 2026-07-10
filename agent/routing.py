@@ -23,10 +23,16 @@ def route_after_missing_info(
         return "escalate"
     if facts.get("cross_border_work"):
         return "escalate"
+    if facts.get("vendor_contract_renewal") or facts.get("active_rfp"):
+        return "escalate"
     if facts.get("sensitive_data_involved") and facts.get("external_vendor_involved"):
         return "escalate"
 
-    if state.get("blocking_missing_info"):
+    blocking = state.get("blocking_missing_info") or []
+    essential_blockers = {"amount", "gift value", "type of data"}
+    if blocking and any(item in essential_blockers for item in blocking):
+        return "clarify"
+    if blocking and blocking != ["relevant policy evidence"]:
         return "clarify"
 
     return "decide"
